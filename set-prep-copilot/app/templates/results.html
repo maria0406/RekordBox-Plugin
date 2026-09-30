@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Results — Set Prep Copilot{% endblock %}
+{% block content %}
+<section class="card stage">
+  <div class="stage-step">Stage 3 of 5</div>
+  <h1>Ordered set: {{ playlist_name }}</h1>
+  <p class="lede">Set shape: <strong>{{ set_shape.replace('_', ' ') }}</strong> &middot; {{ ordered_tracks|length }} tracks</p>
+
+  {% if skipped_tracks %}
+  <div class="info-box">
+    <p><strong>{{ skipped_tracks|length }} track(s) were skipped</strong> -- their audio file
+      couldn't be read (moved, renamed, or deleted since rekordbox last saw them):</p>
+    <ul>
+      {% for s in skipped_tracks %}
+      <li>{{ s.name }} — {{ s.artist }}: {{ s.reason }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <ol class="tracklist">
+    {% for track in ordered_tracks %}
+    <li class="track-row">
+      <span class="track-pos">{{ loop.index }}</span>
+      <div class="reorder-buttons">
+        <form action="/results/move" method="post">
+          <input type="hidden" name="track_id" value="{{ track.id }}">
+          <input type="hidden" name="direction" value="up">
+          <button type="submit" class="button small" {% if loop.first %}disabled{% endif %} aria-label="Move up">&uarr;</button>
+        </form>
+        <form action="/results/move" method="post">
+          <input type="hidden" name="track_id" value="{{ track.id }}">
+          <input type="hidden" name="direction" value="down">
+          <button type="submit" class="button small" {% if loop.last %}disabled{% endif %} aria-label="Move down">&darr;</button>
+        </form>
+      </div>
+      <div class="track-main">
+        <div class="track-name">{{ track.name }}</div>
+        <div class="track-artist">{{ track.artist }}</div>
+      </div>
+      <div class="track-meta">
+        <span class="pill">{{ "%.0f"|format(track.bpm) }} BPM</span>
+        <span class="pill">{{ track.camelot_key }}</span>
+      </div>
+      <div class="track-cues">
+        {% for cue in cue_plan.get(track.id, []) %}
+        <span class="cue-nudge">
+          <span class="cue-dot" style="background:{{ cue.color_hex }}" title="{{ cue.name }} @ {{ '%.1f'|format(cue.start_s) }}s"></span>
+          <form action="/results/nudge-cue" method="post" class="cue-nudge-form">
+            <input type="hidden" name="track_id" value="{{ track.id }}">
+            <input type="hidden" name="cue_index" value="{{ loop.index0 }}">
+            <input type="hidden" name="delta_seconds" value="-0.5">
+            <button type="submit" class="button tiny" aria-label="Nudge {{ cue.name }} earlier">-</button>
+          </form>
+          <form action="/results/nudge-cue" method="post" class="cue-nudge-form">
+            <input type="hidden" name="track_id" value="{{ track.id }}">
+            <input type="hidden" name="cue_index" value="{{ loop.index0 }}">
+            <input type="hidden" name="delta_seconds" value="0.5">
+            <button type="submit" class="button tiny" aria-label="Nudge {{ cue.name }} later">+</button>
+          </form>
+        </span>
+        {% endfor %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <div class="export-row">
+    <form action="/export/rekordbox" method="post">
+      <button type="submit" class="button primary">Download rekordbox XML</button>
+    </form>
+    <p class="hint">
+      Import it in rekordbox via <code>File &gt; Import &gt; rekordbox xml</code>. This adds
+      a new playlist and new cues — it never removes or overwrites any cue you've already
+      hand-set, on this track or any other.
+    </p>
+
+    <a href="/export/spotify/preview" class="button">Create Spotify playlist</a>
+    {% if spotify_playlist_url %}
+    <p class="success"><a href="{{ spotify_playlist_url }}" target="_blank" rel="noopener">Open the ordered playlist on Spotify &rarr;</a></p>
+    {% else %}
+    <p class="hint">Matches each track by ISRC first, falling back to a title/artist search
+      flagged lower-confidence, and lets you confirm matches before anything is created.</p>
+    {% endif %}
+  </div>
+
+  <a href="/practice" class="button">Start practice session &rarr;</a>
+</section>
+{% endblock %}

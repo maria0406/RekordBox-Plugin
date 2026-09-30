@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Setup — Set Prep Copilot{% endblock %}
+{% block content %}
+<section class="card stage">
+  <div class="stage-step">Stage 2 of 5</div>
+  <h1>Choose what to prep</h1>
+  <p class="lede">Signed in as <strong>{{ me.display_name or me.id }}</strong>.</p>
+
+  <div class="info-box">
+    <p>
+      Analysis (BPM, key, energy, phrases) runs on the actual audio files on this
+      laptop, so playlists come straight from your <strong>local rekordbox
+      library</strong> — no manual XML export or upload needed. Spotify comes back
+      in at the end, as the destination for the ordered output playlist.
+    </p>
+  </div>
+
+  {% if rekordbox_error %}
+  <p class="error">{{ rekordbox_error }}</p>
+  {% elif not playlists %}
+  <p class="error">No playlists found in your rekordbox library.</p>
+  {% else %}
+  <form action="/analyze" method="post" class="form" id="analyze-form">
+    <label for="playlist_id">Playlist to prep</label>
+    <select name="playlist_id" id="playlist_id" required>
+      {% for pl in playlists %}
+      <option value="{{ pl.id }}">{{ pl.path }}</option>
+      {% endfor %}
+    </select>
+    <input type="hidden" name="playlist_name" id="playlist_name"
+           value="{{ playlists[0].path if playlists else '' }}">
+
+    <label for="set_shape">Set shape</label>
+    <select name="set_shape" id="set_shape">
+      <option value="warm_up">Warm up</option>
+      <option value="build" selected>Build</option>
+      <option value="peak">Peak</option>
+      <option value="cool_down">Cool down</option>
+    </select>
+
+    <label for="locked_opener_id">Lock as opener (optional)</label>
+    <select name="locked_opener_id" id="locked_opener_id">
+      <option value="">None</option>
+    </select>
+
+    <label for="locked_closer_id">Lock as closer (optional)</label>
+    <select name="locked_closer_id" id="locked_closer_id">
+      <option value="">None</option>
+    </select>
+
+    <button type="submit" class="button primary">Analyze &amp; order this set</button>
+    <p class="hint">
+      This runs real beat/key/energy analysis on every track's audio file, so it can take
+      a while for a full set — the page will load Results once it's done.
+    </p>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/setup.js"></script>
+{% endblock %}

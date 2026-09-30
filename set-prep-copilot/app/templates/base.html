@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Set Prep Copilot{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">Set Prep Copilot</a>
+    <nav class="topnav">
+      <a href="/setup">Setup</a>
+      <a href="/results">Results</a>
+      <a href="/practice">Practice</a>
+      <a href="#" id="legend-toggle">Cue legend</a>
+      <a href="/logout">Log out</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <aside id="legend-panel" class="legend-panel" hidden>
+    <div class="legend-panel-head">
+      <h2>Cue color legend</h2>
+      <button type="button" id="legend-close" aria-label="Close legend">&times;</button>
+    </div>
+    <p class="legend-intro">Every cue the tool places uses one of these six colors and names, on the waveform and in the cue list.</p>
+    <ul class="legend-list">
+      {% for cue in legend %}
+      <li class="legend-item">
+        <span class="swatch" style="background:{{ cue.color }}" aria-hidden="true"></span>
+        <div>
+          <div class="legend-name">{{ cue.name }}</div>
+          <div class="legend-action">{{ cue.action }}</div>
+          <div class="legend-where">{{ cue.where }}</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

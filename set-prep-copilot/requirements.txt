@@ -1,0 +1,13 @@
+eval-type-backport>=0.2  # lets FastAPI/pydantic resolve `X | None` on Python 3.9
+pyrekordbox>=0.4.4  # reads the live rekordbox library directly (no manual XML export needed)
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-dotenv>=1.0
+requests>=2.31
+jinja2>=3.1
+itsdangerous>=2.1
+python-multipart>=0.0.9
+httpx>=0.27  # required by fastapi.testclient.TestClient, used in tests/
+librosa>=0.10
+numpy>=1.26
+soundfile>=0.12

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source .venv/bin/activate)",
+      "mcp__claude-in-chrome__navigate",
+      "Bash(npx tsc --noEmit *)",
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__read_console_messages",
+      "Bash(awk *)",
+      "mcp__claude-in-chrome__find"
+    ]
+  }
+}
