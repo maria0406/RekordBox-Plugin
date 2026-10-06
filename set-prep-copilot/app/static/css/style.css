@@ -158,58 +158,44 @@ h2 { font-size: 17px; margin: 28px 0 12px; }
 .legend-action { font-size: 13px; color: var(--text); }
 .legend-where { font-size: 12px; color: var(--text-dim); }
 
-/* Practice mode deck rig */
-.deck-rig { display: flex; gap: 24px; margin: 24px 0 32px; }
-.deck {
-  flex: 1;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px;
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
+/* Practice mode: Move Coach controller (templates/_controller.html) */
+.coach-stage {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--panel); padding: 12px 0 16px; margin: 16px 0 8px;
 }
-.deck-label { grid-column: 1 / -1; font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
-.control {
-  background: #2c2c33;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px;
-  text-align: center;
-  font-size: 11px;
-  color: var(--text-dim);
-  transition: box-shadow 0.2s, transform 0.2s, color 0.2s;
-}
-.control.knob { border-radius: 50%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
-.fader-track {
-  grid-column: 1 / -1;
-  height: 60px;
-  background: #2c2c33;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  position: relative;
-}
-.fader-handle {
-  position: absolute;
-  left: 8px; right: 8px;
-  height: 18px;
-  bottom: 8px;
-  background: #4a4a54;
-  border-radius: 4px;
-  transition: bottom 1.2s ease, background 0.2s;
-}
+svg.controller { width: 100%; height: auto; display: block; max-height: 62vh; }
+svg.controller .chassis { fill: #0d0d0f; stroke: var(--border); stroke-width: 2; }
+svg.controller .panel { fill: var(--panel-2); stroke: var(--border); }
+svg.controller .ring { fill: none; stroke: none; stroke-width: 4; }
+svg.controller .body { fill: #2c2c33; stroke: #45454f; stroke-width: 1.5; }
+svg.controller .knob .knob-pointer line { stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
+svg.controller .jog .platter { fill: #26262c; stroke: #3a3a43; }
+svg.controller .jog .hub { fill: #33333b; }
+svg.controller .jog .jog-spin line { stroke: #55555f; stroke-width: 3; }
+svg.controller .fader .slot { stroke: #0d0d0f; stroke-width: 5; stroke-linecap: round; }
+svg.controller .fader-cap rect { fill: #4a4a54; stroke: #6a6a75; }
+svg.controller .fader-cap line { stroke: var(--text); stroke-width: 2; }
+svg.controller .lbl { fill: var(--text-dim); font: 600 10px system-ui, sans-serif; text-anchor: middle; letter-spacing: 0.04em; }
+svg.controller .lbl.tiny { font-size: 8px; }
+svg.controller .lbl.section { fill: var(--text); font-size: 11px; }
+svg.controller .btn.lit .body { fill: #3f9b5a; stroke: #6fd08b; }
 
-.control.pulse { color: var(--text); box-shadow: 0 0 0 3px var(--pulse-color, var(--accent)); animation: pulse 0.9s ease-in-out 2; }
-.control.knob.turn { transform: rotate(35deg); box-shadow: 0 0 0 3px var(--pulse-color, var(--accent)); }
-.fader-handle.up { bottom: calc(100% - 26px); background: var(--pulse-color, var(--accent)); }
-.fader-handle.down { bottom: 8px; background: var(--pulse-color, var(--accent)); }
+/* "Do this now": bright ring. "Coming up": dashed ring. */
+svg.controller .ctl.focus .ring { stroke: var(--accent); animation: coach-glow 1s ease-in-out infinite; }
+svg.controller .ctl.soon .ring { stroke: var(--text-dim); stroke-dasharray: 5 5; }
+svg.controller .coach-arrow { fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round; }
+svg.controller .arrow-head { fill: var(--accent); }
+@keyframes coach-glow { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.35; } }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
+.coach-caption { min-height: 66px; margin-top: 10px; }
+.coach-title { font-size: 20px; font-weight: 700; }
+.coach-detail { color: var(--text); font-size: 14px; margin-top: 2px; }
+.coach-next { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+.coach-transport { display: flex; align-items: center; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+#coach-scrub { flex: 1; min-width: 200px; accent-color: var(--accent); }
+.coach-clock { color: var(--text-dim); font-size: 12px; font-variant-numeric: tabular-nums; width: 100%; }
+.select-transition { background: none; border: none; color: var(--text); font: inherit; padding: 0; cursor: pointer; text-align: left; }
+.transition-block.selected h2 .select-transition { color: var(--accent); }
 
 .transition-block { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); }
 .transition-block h2 { margin-bottom: 10px; }

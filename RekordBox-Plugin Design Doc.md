@@ -10,18 +10,17 @@ The problem: prepping a set is the most time-consuming part of DJing. A DJ has t
 
 **The gap in rekordbox today:** the track list sorts by one column at a time, so a DJ can sort by BPM or by key, but not both. Sorting by BPM scatters compatible keys, and sorting by key scatters tempos, so the DJ still has to build the order by hand. Set Prep Copilot orders the whole set by BPM and key together, then adds energy on top.
 
-The product is a companion tool that sits beside rekordbox. It reads a setlist, analyzes the audio itself, and outputs two things: a reordered playlist in the DJ's Spotify library, and labeled, color-coded cue points in rekordbox that tell the DJ what to do at each point in the track.
+The product is a companion tool that sits beside rekordbox. It reads a setlist, analyzes the audio itself, and writes back a reordered playlist with labeled, color-coded cue points in rekordbox that tell the DJ what to do at each point in the track. For beginners without a library yet, it ships a practice catalog of openly licensed house tracks graded from easy to hard.
 
 ## Goals and non-goals
 
-The MVP ships in 3 weeks and does three things well: order a set, mark transitions, and hand the result back to rekordbox and Spotify.
+The MVP ships in 3 weeks and does three things well: order a set, mark transitions, and hand the result back to rekordbox.
 
 **Goals**
 
 - Take a setlist of 10 to 30 tracks and return an ordered set based on BPM and key compatibility
 - Analyze each track's audio ourselves to find beats, phrases, and energy changes
 - Mark each track with labeled cues for actions: mix in, mix out, bass swap, filter, and loop
-- Create a new playlist in the DJ's Spotify library in the recommended order
 - Import the ordered playlist and cues into rekordbox without manual re-entry
 
 **Non-goals for the MVP**
@@ -29,7 +28,7 @@ The MVP ships in 3 weeks and does three things well: order a set, mark transitio
 - Genre-specific logic, including Latin to English house bridging
 - Live, in-set guidance (moved to the Move Coach and Phrase Countdown Light extensions)
 - A true in-app rekordbox plugin: rekordbox has no public plugin API, so this is a companion app that talks to rekordbox through its supported XML import
-- Downloading or converting Spotify audio, which Spotify's terms do not allow
+- Any Spotify integration (removed from scope Oct 4, 2026). It was redundant: Spotify's developer policy forbids analyzing its audio, its audio-features endpoints are gone for new apps, so it could only ever mirror a playlist rekordbox already has, while gating every user behind a login and a 5-tester cap. Streamed tracks of any service stay out of scope for analysis.
 - Automatic mixing or AI-generated transitions: the DJ still performs the set
 
 ## Users and success metrics
@@ -40,14 +39,14 @@ The first users are student DJs at UT who play on rekordbox with a beginner or m
 | --- | --- | --- |
 | Prep time per set | Timed prep of a 15-track set, before vs. after | Cut by at least 50% (baseline measured in week 1) |
 | Cue accuracy | Share of generated cues the DJ keeps without moving | 70% or more |
-| Active testers | DJs who prep at least one real set with the tool | 5 (Spotify's Development Mode cap, see Risks) |
+| Active testers | DJs who prep at least one real set with the tool | 5 |
 | Would use again | One-question survey after a set | 4 of 5 testers say yes |
 
 The baseline for prep time comes from user interviews in week 1, so every target is measured against real numbers, not guesses.
 
 ## End-to-end workflow
 
-The DJ builds a rough setlist in rekordbox, runs it through the tool, and gets back an ordered, cued set in both rekordbox and Spotify.
+The DJ builds a rough setlist in rekordbox, runs it through the tool, and gets back an ordered, cued set in rekordbox.
 
 1. **Build the setlist.** The DJ drags tracks into a rekordbox playlist, in any order.
 2. **Run the tool.** The DJ opens the tool, which reads playlists and tracks straight from rekordbox's own local library database (no manual XML export or upload step), picks the playlist to prep, and chooses a set shape (for example, warm up, build, peak, cool down).
@@ -56,13 +55,12 @@ The DJ builds a rough setlist in rekordbox, runs it through the tool, and gets b
 5. **Tag.** For each transition, the tool places labeled cues: where to start mixing in, where to swap bass, where to apply a filter, and where the outgoing track should be gone.
 6. **Review.** The DJ sees the ordered set and every cue in a simple preview screen, and can reorder tracks or nudge a cue before exporting.
 7. **Write back to rekordbox.** The tool writes a new XML file with a new playlist and the cue points. The DJ imports it through rekordbox's XML view.
-8. **Write back to Spotify.** The tool matches each track to its Spotify version and creates a new playlist in the DJ's library in the same order.
 
-**Key design decision:** the tool can only analyze audio it can open, so the MVP works on local files (purchased or owned music). Spotify tracks stream inside rekordbox under DRM, and their audio cannot be read or downloaded by a third-party tool. The Spotify playlist is an output for previewing, sharing, and streaming playback, not an input for analysis. See Risks for how this might extend to Spotify-only sets.
+**Key design decision:** the tool can only analyze audio it can open, so the MVP works on local files (purchased or owned music). Streamed tracks (Spotify, Beatport, SoundCloud, TIDAL) play inside rekordbox under DRM, and their audio cannot be read by a third-party tool. DJs without local files start with the bundled practice catalog instead.
 
 ## System architecture
 
-The tool is a Python companion app that reads a rekordbox export, runs a five-step pipeline, and writes results back to rekordbox and Spotify.
+The tool is a Python companion app that reads a rekordbox export, runs a five-step pipeline, and writes results back to rekordbox.
 
 &#91;embedded content: system architecture · 5 pipeline steps, 2 outputs\]
 
@@ -129,45 +127,19 @@ rekordbox offers two kinds of cues, and the scheme uses both:
 - The manual "File > Export Collection in xml format" + upload step is gone. The tool now reads the DJ's playlists and tracks straight from rekordbox's own local database (pyrekordbox's `Rekordbox6Database`), read-only — it never calls `.add()`/`.commit()` on the database session, so it can't touch or corrupt the live library. This is a different, much lower-risk use of pyrekordbox than the direct-DB cue-*write* path this doc already researched and rejected for the MVP: reading is pyrekordbox's core, well-trodden use case, writing cues is the risky edge case that stays out of scope.
 - Confirmed, not assumed: rekordbox stores BPM as an integer times 100. Verified against a known real track in this machine's own rekordbox library (rekordbox's own bundled "Demo Track 1"): the database's raw value `12800` converts to `128.0`, exactly matching that track's real, documented BPM.
 - The database's FolderPath field is already a plain local filesystem path — unlike the XML format's Location attribute, no file:// URI decoding needed.
-- Real upgrade over the old XML-export path: the database carries each track's ISRC directly (rekordbox extracts it from the file's own tags during its own analysis), which the XML export never did. Tracks read this way get real ISRC-based Spotify matching (see "Match tracks" below) instead of always falling back to the text-search path already shown, in the Spotify section below, to produce false positives.
+- Real upgrade over the old XML-export path: the database carries each track's ISRC directly (rekordbox extracts it from the file's own tags during its own analysis), which the XML export never did.
 - pyrekordbox's own database handler only warns, never blocks, when rekordbox is running at the same time. Whether reading actually works smoothly against a real *running* rekordbox instance, not just what the source code says, is a new day-1 verification item, below.
 - Consequence for the write side: `write_export` no longer clones a source XML document to build its output — there's no longer an uploaded file to clone. It now builds a minimal, self-contained XML from just the tracks being exported, with no record of the DJ's other existing playlists. Getting that new playlist and its cues folded correctly into the live library now depends entirely on rekordbox's own XML-import merge behavior. That was already the day-1 risk item above ("XML import could overwrite a DJ's hand-set cues") — this change makes it more load-bearing, not a new risk.
 - End-to-end validation: the full pipeline (database read, then real librosa audio analysis, then BPM/key/energy scoring and ordering, then cue placement, then XML export) ran against real data — the two actual Demo Track MP3s in this machine's real rekordbox library, not synthetic test fixtures — and produced a valid, re-parseable XML with 8 correctly-encoded POSITION\_MARK cues.
 
-## Spotify playlist output
-
-The tool creates a new private playlist in the DJ's Spotify account, in set order, and it appears automatically inside rekordbox's Spotify browser.
-
-1. **Sign in.** The DJ logs in with Spotify through the Authorization Code with PKCE flow and grants the playlist-modify-private scope.
-2. **Match tracks.** For each local file, the tool searches Spotify by ISRC (the standard recording ID) when the file's tags have one, and falls back to title plus artist. Low-confidence matches are flagged in the review screen for the DJ to confirm.
-3. **Create the playlist.** The tool calls POST /me/playlists with a name like *Set Prep: Sat 10/10*, then POST /playlists/{id}/items with the ordered track URIs.
-4. **Sync.** Because rekordbox syncs the DJ's Spotify playlists, the new playlist shows up there with no extra step.
-
-Spotify's API rules as of September 2026 shape this design:
-
-- Spotify removed its audio analysis and audio features endpoints (tempo, key, energy) for new apps in late 2024, so all analysis must come from our own code
-- Apps in Development Mode are limited to 5 allowlisted users, and the app owner needs Premium ([migration guide](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide))
-- Search returns at most 10 results per request, so matching runs one track at a time
-- Playlist creation moved to POST /me/playlists, and track management moved from /tracks to /items in February 2026
-
-**Verified against a live pull, Sept 30, 2026** (raw responses and field-by-field shapes in `spotify-api-explorer/API_SHAPES.md` and `spotify-api-explorer/samples/`):
-
-- Confirmed, not just documented: `/v1/audio-features/{id}` and `/v1/audio-analysis/{id}` both return HTTP 403 for this app. Tempo/key/loudness/energy have zero path through the Web API — the librosa/Essentia pipeline is load-bearing, not a fallback.
-- ISRC matching is precise where text matching is not, with a concrete example: searching `isrc:QMFMF2447055` for "NUEVAYoL" by Bad Bunny returned exactly that one track. The `track:NUEVAYoL artist:Bad Bunny` text fallback for the same track returned 2 additional false positives — a differently-credited remix ("NUEVAYOL - DJ Bunny Afro House Remix" by Zero J / Bad Toman) with its own, different ISRC. This raises the stakes on step 2's "flag low-confidence matches" — a title+artist string match alone is not a reliable equality check, even when the title is near-identical.
-- Gotcha for matching code: an ISRC search response's `tracks.total` reported `0` even though `tracks.items` contained the matching track. Match-detection logic must check `len(items)`, not `total`.
-- Gotcha for any code that reads playlist contents back (e.g. de-duping before the sync step): the Feb 2026 `GET /v1/playlists/{id}/items` endpoint renamed the per-entry payload key from `track` to `item` (the object still carries `"type": "track"` internally). Code written against the pre-migration shape will silently find zero tracks.
-
 ## Risks and open questions
 
-The biggest risk is that most student DJs play from Spotify, and the tool cannot read Spotify audio; the first two days go to testing a workaround.
+The biggest risk is that most student DJs play from streaming services, whose audio the tool cannot read; the bundled practice catalog gives them something to learn on until they own files.
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| Spotify-only setlists cannot be analyzed | Testers without local files get no value | MVP requires local files. **Spike run Sept 30, 2026, against pyrekordbox's real schema (no live Spotify-linked track available to inspect directly — this machine's rekordbox library is only Pioneer's bundled demo content):** `DjmdContent.ServiceID` is a real column, actively indexed by rekordbox itself (`djmd_content_rb_local_deleted__service_i_d`, confirmed from a raw rekordbox 7.2.18 schema dump) — strong evidence it's a genuine source/service discriminator, not dead schema. `AnalysisDataPath`, `rb_LocalFolderPath`, and the `Src*` fields (`SrcID`, `SrcTitle`, `SrcArtistName`, `SrcAlbumName`, `SrcLength`) together suggest infrastructure for non-local-file content in general. But neither pyrekordbox nor any public schema dump documents what `ServiceID` values mean or whether rekordbox actually runs its own beat/key analysis on streamed audio (vs. just relaying the streaming service's own metadata) — that's still genuinely unresolved, and no amount of further schema-reading will resolve it. **Next step, not done here:** get one real Spotify-linked track into a test rekordbox library, then check its `ServiceID`/`AnalysisDataPath`/`FolderPath` values and whether `pyrekordbox.anlz.read_anlz_files` can actually open whatever `AnalysisDataPath` points to. |
-| Cues may not attach to Spotify tracks via XML | Cues only appear on local copies | Test on day 1 with one streamed track. If it fails, cues live on local files and the Spotify playlist stays a preview. |
 | XML import could overwrite a DJ's hand-set cues | Lost work, lost trust — higher stakes now that exports are minimal, self-contained files (just the new playlist and its tracks) rather than a full clone of the DJ's library, so a clean merge on import depends entirely on rekordbox's own behavior | Always write to a new playlist, back up the rekordbox library first, and test on a spare library. |
 | Our key or BPM detection is wrong | Bad ordering and misplaced cues | Benchmark against rekordbox's own values on 20 tracks before testing with users. |
-| Spotify's 5-user cap | Only 5 testers can use the Spotify step | Pick 5 Spotify testers; others use the rekordbox output only. |
 | 3 weeks alongside classes | Scope slips | Hold the cue scheme and ordering as must-haves; the review screen can be a simple list. |
 
 **Open questions**
@@ -175,8 +147,6 @@ The biggest risk is that most student DJs play from Spotify, and the tool cannot
 - [ ] Does rekordbox 7 render POSITION_MARK's (undocumented) RGB attributes at all, and does that color survive onto CDJ hardware?
 - [ ] Does re-importing XML for a track already in the library cleanly merge in new cues, or conflict with hand-set ones?
 - [x] Does reading the rekordbox database work reliably while rekordbox itself is open and running? **Answered, Sept 30, 2026:** yes, confirmed empirically — launched the real rekordbox 7 app on this machine, then ran `rekordbox_db.list_playlists()`/`get_playlist_tracks()` against it three times in a row while it stayed open. Every read succeeded in well under half a second, no hang, no error, only pyrekordbox's own advisory log line ("Rekordbox is running!"). No longer a risk.
-- [ ] Can the XML carry cues for a streamed Spotify track at all?
-- [ ] Is rekordbox's analysis data for Spotify tracks cached where pyrekordbox can read it? See the "Spotify-only setlists cannot be analyzed" risk row above for the Sept 30, 2026 schema-level spike — genuinely still open, needs a real Spotify-linked test track to resolve further, not just more reading of pyrekordbox's source.
 - [x] Desktop app or command-line tool for the MVP? **Answered:** neither — a local web app (FastAPI backend, browser UI), run on the DJ's own laptop. Chosen so other testers can run the same codebase themselves without a packaged installer, while still keeping audio analysis local (see `set-prep-copilot/`).
 - [ ] How long does a 15-track set take to prep today (baseline from interviews)?
 
@@ -186,7 +156,7 @@ Week 1 retires the biggest technical risks before any real building starts, so w
 
 &#91;embedded content: 3-week plan · 3 phases, 3 gates\]
 
-If the week 1 gate fails (cues do not import cleanly), the fallback is to write cues as a printed prep sheet per set, and keep the Spotify playlist as the main output.
+If the week 1 gate fails (cues do not import cleanly), the fallback is to write cues as a printed prep sheet per set.
 
 ## Future extension: Phrase Countdown Light
 

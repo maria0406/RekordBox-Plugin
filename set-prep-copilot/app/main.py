@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import secrets
 import statistics
 from pathlib import Path
 
@@ -8,16 +7,14 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, config, cues, rekordbox_db, rekordbox_xml, scoring, session_state, spotify_client
+from . import config, cues, rekordbox_db, rekordbox_xml, scoring, session_state
 from .audio_analysis import analyze_track
 
 APP_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
 app = FastAPI(title="Set Prep Copilot")
-app.add_middleware(SessionMiddleware, secret_key=config.SESSION_SECRET)
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
 CUE_LEGEND = [
@@ -36,58 +33,11 @@ def render(request: Request, name: str, **context):
 
 @app.get("/")
 def index():
-    if auth.is_authenticated():
-        return RedirectResponse("/setup")
-    return RedirectResponse("/connect")
-
-
-@app.get("/connect")
-def connect(request: Request):
-    return render(request, "connect.html")
-
-
-@app.get("/login")
-def login(request: Request):
-    verifier, challenge = auth.make_pkce_pair()
-    state = secrets.token_urlsafe(16)
-    request.session["pkce_verifier"] = verifier
-    request.session["pkce_state"] = state
-    return RedirectResponse(auth.build_authorize_url(challenge, state))
-
-
-@app.get("/callback")
-def callback(request: Request, code: str | None = None, state: str | None = None, error: str | None = None):
-    if error:
-        return render(request, "connect.html", error=f"Spotify sign-in was not completed: {error}")
-
-    expected_state = request.session.pop("pkce_state", None)
-    verifier = request.session.pop("pkce_verifier", None)
-    if not verifier or not state or state != expected_state:
-        return render(request, "connect.html", error="Login could not be verified (state mismatch). Please try again.")
-
-    tokens = auth.exchange_code_for_tokens(code, verifier)
-    auth.save_cached_tokens(tokens)
     return RedirectResponse("/setup")
-
-
-@app.get("/logout")
-def logout():
-    auth.clear_cached_tokens()
-    session_state.reset()
-    return RedirectResponse("/connect")
-
-
-def _require_auth():
-    return None if auth.is_authenticated() else RedirectResponse("/connect")
 
 
 @app.get("/setup")
 def setup_get(request: Request):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-
-    me = spotify_client.get_me()
     playlists: list[dict] = []
     rekordbox_error: str | None = None
     try:
@@ -96,17 +46,13 @@ def setup_get(request: Request):
         rekordbox_error = str(exc)
 
     return render(
-        request, "setup.html", me=me,
+        request, "setup.html",
         playlists=playlists, rekordbox_error=rekordbox_error,
     )
 
 
 @app.get("/setup/tracks")
 def setup_tracks(playlist_id: str):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-
     try:
         tracks = rekordbox_db.get_playlist_tracks(playlist_id)
     except rekordbox_db.RekordboxDbError as exc:
@@ -122,14 +68,21 @@ def analyze(
     request: Request, playlist_id: str = Form(...), playlist_name: str = Form(...),
     set_shape: str = Form("build"), locked_opener_id: str = Form(""), locked_closer_id: str = Form(""),
 ):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-
     try:
         source_tracks = rekordbox_db.get_playlist_tracks(playlist_id)
     except rekordbox_db.RekordboxDbError as exc:
-        return render(request, "setup.html", me=spotify_client.get_me(), playlists=[], rekordbox_error=str(exc))
+        return render(request, "setup.html", playlists=[], rekordbox_error=str(exc))
+
+    if not source_tracks:
+        return render(
+            request, "setup.html",
+            playlists=sorted(rekordbox_db.list_playlists(), key=lambda p: p["path"]),
+            rekordbox_error=(
+                f"{playlist_name!r} has no tracks with a local audio file rekordbox can see "
+                "(it may be empty, or every track in it is streamed/missing). Pick a playlist "
+                "that has local tracks in it, or add some to this one in rekordbox first."
+            ),
+        )
 
     session_state.STATE.playlist_name = playlist_name
     session_state.STATE.source_tracks = source_tracks
@@ -160,9 +113,10 @@ def analyze(
             "track_id": track_id,
             "bpm": result["bpm"],
             # write_export reads "average_bpm" for the exported AverageBpm
-            # attribute; our own measured tempo is more accurate than
-            # whatever rekordbox's own analysis said, so that's what goes out.
-            "average_bpm": result["bpm"],
+            # attribute. Send back rekordbox's own value untouched: importing
+            # the XML overwrites the library's BPM field, and the DJ's decks
+            # run on rekordbox's beat grid, not ours (same for "tonality").
+            "average_bpm": track.get("average_bpm"),
             "camelot_key": result["camelot_key"],
             "energy": mean_rms,
             "name": track["name"],
@@ -174,6 +128,17 @@ def analyze(
             "location": track["location"],
             "raw_attrib": track.get("raw_attrib"),
         })
+
+    if not scoring_input:
+        return render(
+            request, "setup.html",
+            playlists=sorted(rekordbox_db.list_playlists(), key=lambda p: p["path"]),
+            rekordbox_error=(
+                f"None of the {len(source_tracks)} track(s) in {playlist_name!r} could be "
+                f"analyzed — their audio files couldn't be read: "
+                + "; ".join(f"{s['name']} ({s['reason']})" for s in skipped)
+            ),
+        )
 
     locked: dict[int, str] = {}
     scoring_ids = {t["id"] for t in scoring_input}
@@ -194,9 +159,6 @@ def analyze(
 
 @app.get("/results")
 def results(request: Request):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
     if not session_state.STATE.ordered_tracks:
         return RedirectResponse("/setup")
 
@@ -206,7 +168,6 @@ def results(request: Request):
         cue_plan=session_state.STATE.cue_plan,
         playlist_name=session_state.STATE.playlist_name,
         set_shape=session_state.STATE.set_shape,
-        spotify_playlist_url=session_state.STATE.spotify_playlist_url,
         rekordbox_export_ready=bool(session_state.STATE.rekordbox_export_path),
         skipped_tracks=session_state.STATE.skipped_tracks,
     )
@@ -214,10 +175,6 @@ def results(request: Request):
 
 @app.post("/results/move")
 def results_move(track_id: str = Form(...), direction: str = Form(...)):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-
     ordered = session_state.STATE.ordered_tracks
     index = next((i for i, t in enumerate(ordered) if t["id"] == track_id), None)
     if index is not None:
@@ -233,10 +190,6 @@ def results_move(track_id: str = Form(...), direction: str = Form(...)):
 
 @app.post("/results/nudge-cue")
 def results_nudge_cue(track_id: str = Form(...), cue_index: int = Form(...), delta_seconds: float = Form(...)):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-
     track_cues = session_state.STATE.cue_plan.get(track_id)
     if track_cues is not None and 0 <= cue_index < len(track_cues):
         cue = track_cues[cue_index]
@@ -249,10 +202,6 @@ def results_nudge_cue(track_id: str = Form(...), cue_index: int = Form(...), del
 
 @app.post("/export/rekordbox")
 def export_rekordbox():
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-
     out_name = f"{(session_state.STATE.playlist_name or 'set').replace(' ', '_')}_prepped.xml"
     out_path = config.UPLOADS_DIR / out_name
     comments_by_track_id = cues.build_transition_notes(
@@ -260,7 +209,10 @@ def export_rekordbox():
     )
     rekordbox_xml.write_export(
         tracks_in_order=session_state.STATE.ordered_tracks,
-        cues_by_track_id=session_state.STATE.cue_plan,
+        cues_by_track_id={
+            track_id: cues.merge_coincident_memory_cues(track_cues)
+            for track_id, track_cues in session_state.STATE.cue_plan.items()
+        },
         output_path=str(out_path),
         playlist_name=f"{session_state.STATE.playlist_name} (Prepped)",
         comments_by_track_id=comments_by_track_id,
@@ -269,72 +221,36 @@ def export_rekordbox():
     return FileResponse(out_path, filename=out_name, media_type="application/xml")
 
 
-@app.get("/export/spotify/preview")
-def export_spotify_preview(request: Request):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-    if not session_state.STATE.ordered_tracks:
-        return RedirectResponse("/setup")
-
-    matches = {}
-    for track in session_state.STATE.ordered_tracks:
-        matched, confidence = spotify_client.match_track_by_isrc_then_text(
-            track.get("isrc"), track.get("name", ""), track.get("artist", ""),
-        )
-        matches[track["id"]] = {"track": matched, "confidence": confidence}
-
-    session_state.STATE.spotify_matches = matches
-
-    rows = [
-        {"track": track, "match": matches[track["id"]]["track"], "confidence": matches[track["id"]]["confidence"]}
-        for track in session_state.STATE.ordered_tracks
-    ]
-    return render(request, "results_spotify_preview.html", rows=rows, playlist_name=session_state.STATE.playlist_name)
-
-
-@app.post("/export/spotify/confirm")
-async def export_spotify_confirm(request: Request):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
-
-    form = await request.form()
-    uris: list[str] = []
-    for track in session_state.STATE.ordered_tracks:
-        if form.get(f"include_{track['id']}"):
-            matched = (session_state.STATE.spotify_matches.get(track["id"]) or {}).get("track")
-            if matched:
-                uris.append(matched["uri"])
-
-    playlist = spotify_client.create_playlist(
-        name=f"Set Prep: {session_state.STATE.playlist_name}",
-        description="Ordered by Set Prep Copilot.",
-    )
-    if uris:
-        spotify_client.add_items_to_playlist(playlist["id"], uris)
-
-    session_state.STATE.spotify_playlist_url = playlist.get("external_urls", {}).get("spotify")
-    return RedirectResponse("/results", status_code=303)
-
-
 @app.get("/practice")
 def practice(request: Request):
-    redirect = _require_auth()
-    if redirect:
-        return redirect
     if not session_state.STATE.ordered_tracks:
         return RedirectResponse("/setup")
 
     transitions = []
+    coach_data = []
     ordered = session_state.STATE.ordered_tracks
     plan = session_state.STATE.cue_plan
     for i in range(len(ordered) - 1):
         out_t, in_t = ordered[i], ordered[i + 1]
-        transitions.append({
-            "outgoing": out_t, "incoming": in_t,
-            "outgoing_cues": plan.get(out_t["id"], []),
-            "incoming_cues": plan.get(in_t["id"], []),
+        timing = cues.transition_timing(plan.get(out_t["id"], []), plan.get(in_t["id"], []))
+        if timing is None:
+            continue
+        transitions.append({"outgoing": out_t, "incoming": in_t})
+        coach_data.append({
+            "outId": out_t["id"], "inId": in_t["id"],
+            "outName": out_t["name"], "inName": in_t["name"],
+            "outBpm": out_t["bpm"], "inBpm": in_t["bpm"],
+            **timing,
         })
 
-    return render(request, "practice.html", transitions=transitions)
+    return render(request, "practice.html", transitions=transitions, practice_data={"transitions": coach_data})
+
+
+@app.get("/audio/{track_id}")
+def audio(track_id: str):
+    """Stream a track in the current set to the practice demo. Only files of
+    tracks already in the session's set are served -- never an arbitrary path."""
+    track = next((t for t in session_state.STATE.ordered_tracks if t["id"] == track_id), None)
+    if track is None or not Path(track["location"]).is_file():
+        return JSONResponse({"error": "unknown track"}, status_code=404)
+    return FileResponse(track["location"])

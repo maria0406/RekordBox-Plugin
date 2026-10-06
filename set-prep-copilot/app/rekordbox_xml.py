@@ -264,12 +264,15 @@ def write_export(
     `_track_element_from_dict`), our cues as POSITION_MARK children, and one
     PLAYLISTS node named `playlist_name` listing them in order. This file
     doesn't carry the DJ's other playlists or library tracks -- it's meant
-    to be imported via rekordbox's own `File > Import > rekordbox xml`,
-    which merges by TrackID/location against the live library rather than
-    replacing it. Whether that merge is clean on a track that already
-    exists (very likely here, since DB-sourced tracks are already in the
-    DJ's library) is one of the design doc's day-1 verification items, not
-    something provable from the writer side alone.
+    to be imported through rekordbox's "rekordbox xml" sidebar tree, which
+    merges by location against the live library rather than replacing it.
+    Verified in rekordbox 7 (Oct 4, 2026): "Import Playlist" alone adds no
+    cues to tracks already in the library; "Import To Collection" on the
+    tracks with overwrite brings in every cue at the exact time, the names,
+    the hot cue's color (snapped to rekordbox's palette) and Comments, but
+    NOT memory-cue colors, and only one memory cue per position (see
+    cues.merge_coincident_memory_cues). It also overwrites the library's
+    AverageBpm/Tonality, which is why those carry rekordbox's own values.
 
     `cues_by_track_id[track_id]` entries: {"name": str, "color_hex":
     "#RRGGBB", "start_s": float, "cue_kind": "hot"|"memory",

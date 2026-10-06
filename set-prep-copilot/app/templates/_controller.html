@@ -1,0 +1,124 @@
+{#
+  Generic two-deck controller, laid out like the DDJ-FLX4 top panel (positions
+  traced from the "Top panel" diagram in Pioneer's instruction manual), but
+  deliberately unbranded: no logos, no product styling. Per the design doc's
+  Move Coach note, this is a simplified generic drawing with the FLX4's
+  control names.
+
+  Every control the coach can point at has an id; controller.js drives them:
+  - knobs:   <g class="knob" id="ch1-low">  -- rotates its .knob-pointer
+  - faders:  <g class="fader" id="ch1-fader" data-axis="y|x">  -- moves .fader-cap
+  - buttons: <g class="btn" id="deck1-play">  -- lights up when pressed
+#}
+{% macro knob(id, x, y, label, r=15, side="below") -%}
+<g class="ctl knob" id="{{ id }}" transform="translate({{ x }},{{ y }})">
+  <circle class="ring" r="{{ r + 6 }}"/>
+  <circle class="body" r="{{ r }}"/>
+  <g class="knob-pointer"><line x1="0" y1="0" x2="0" y2="-{{ r - 2 }}"/></g>
+  {% if side == "left" %}<text class="lbl" x="-{{ r + 10 }}" y="4" text-anchor="end" style="text-anchor:end">{{ label }}</text>
+  {% elif side == "right" %}<text class="lbl" x="{{ r + 10 }}" y="4" style="text-anchor:start">{{ label }}</text>
+  {% else %}<text class="lbl" y="{{ r + 18 }}">{{ label }}</text>{% endif %}
+</g>
+{%- endmacro %}
+{% macro btn(id, x, y, label, w=34, h=16, round=false, label_below=true) -%}
+<g class="ctl btn" id="{{ id }}" transform="translate({{ x }},{{ y }})">
+  {% if round %}<circle class="ring" r="{{ w / 2 + 6 }}"/><circle class="body" r="{{ w / 2 }}"/>
+  {% else %}<rect class="ring" x="{{ -w / 2 - 5 }}" y="{{ -h / 2 - 5 }}" width="{{ w + 10 }}" height="{{ h + 10 }}" rx="7"/>
+  <rect class="body" x="{{ -w / 2 }}" y="{{ -h / 2 }}" width="{{ w }}" height="{{ h }}" rx="4"/>{% endif %}
+  {% if label %}<text class="lbl" y="{{ (w / 2 + 16) if round else (h / 2 + 14) }}">{{ label }}</text>{% endif %}
+</g>
+{%- endmacro %}
+{% macro vfader(id, x, y1, y2, label, cap_w=30) -%}
+<g class="ctl fader" id="{{ id }}" data-axis="y" data-min="{{ y2 }}" data-max="{{ y1 }}" transform="translate({{ x }},0)">
+  <rect class="ring" x="-{{ cap_w / 2 + 8 }}" y="{{ y1 - 14 }}" width="{{ cap_w + 16 }}" height="{{ y2 - y1 + 28 }}" rx="8"/>
+  <line class="slot" x1="0" y1="{{ y1 }}" x2="0" y2="{{ y2 }}"/>
+  <g class="fader-cap" transform="translate(0,{{ y2 }})"><rect x="-{{ cap_w / 2 }}" y="-7" width="{{ cap_w }}" height="14" rx="3"/><line x1="-{{ cap_w / 2 - 4 }}" x2="{{ cap_w / 2 - 4 }}" y1="0" y2="0"/></g>
+  <text class="lbl" y="{{ y2 + 26 }}">{{ label }}</text>
+</g>
+{%- endmacro %}
+{% macro deck(n, ox) -%}
+<g class="deck" id="deck{{ n }}" transform="translate({{ ox }},0)">
+  <rect class="panel" x="8" y="8" width="340" height="574" rx="16"/>
+  {{ btn("deck%d-in" % n, 60, 50, "IN", w=26, round=true) }}
+  {{ btn("deck%d-out" % n, 124, 50, "OUT", w=26, round=true) }}
+  {{ btn("deck%d-exit" % n, 186, 50, "4BEAT", w=26, round=true) }}
+  {{ btn("deck%d-call-prev" % n, 242, 50, "", w=18, h=12) }}
+  {{ btn("deck%d-call-next" % n, 268, 50, "", w=18, h=12) }}
+  <text class="lbl tiny" x="255" y="74">CUE/LOOP</text><text class="lbl tiny" x="255" y="84">CALL</text>
+  {{ btn("deck%d-sync" % n, 316, 50, "SYNC", w=26, round=true) }}
+  <g class="ctl jog" id="deck{{ n }}-jog" transform="translate(180,236)">
+    <circle class="ring" r="152"/>
+    <circle class="body" r="140"/>
+    <circle class="platter" r="104"/>
+    <g class="jog-spin"><line x1="0" y1="-100" x2="0" y2="-138"/></g>
+    <circle class="hub" r="18"/>
+    <text class="lbl" y="168">JOG</text>
+  </g>
+  {{ btn("deck%d-shift" % n, 44, 412, "SHIFT", w=26, h=16) }}
+  {{ btn("deck%d-cue" % n, 44, 466, "CUE", w=40, round=true) }}
+  {{ btn("deck%d-play" % n, 44, 538, "PLAY/PAUSE", w=40, round=true) }}
+  {% for mode in ["HOT CUE", "PAD FX", "BEAT JUMP", "SAMPLER"] %}
+  {{ btn("deck%d-mode-%d" % (n, loop.index), 114 + loop.index0 * 50, 432, "", w=40, h=10) }}
+  <text class="lbl tiny" x="{{ 114 + loop.index0 * 50 }}" y="420">{{ mode }}</text>
+  {% endfor %}
+  {% for i in range(8) %}
+  {{ btn("deck%d-pad%d" % (n, i + 1), 114 + (i % 4) * 50, 478 + (i // 4) * 48, "", w=42, h=38) }}
+  {% endfor %}
+  {{ vfader("deck%d-tempo" % n, 318, 410, 540, "TEMPO", cap_w=26) }}
+</g>
+{%- endmacro %}
+
+<svg class="controller" viewBox="0 0 1066 590" role="img"
+     aria-label="Two-deck DJ controller, FLX4 layout: deck 1 on the left, mixer in the middle, deck 2 on the right">
+  <defs>
+    <marker id="arrowhead" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="arrow-head"/>
+    </marker>
+  </defs>
+  <rect class="chassis" x="0" y="0" width="1066" height="590" rx="22"/>
+
+  {{ deck(1, 0) }}
+  {{ deck(2, 710) }}
+
+  <g class="mixer" id="mixer">
+    <rect class="panel" x="364" y="8" width="338" height="574" rx="16"/>
+    {{ btn("load1", 466, 36, "LOAD", w=34, h=14) }}
+    <g class="ctl knob" id="browse" transform="translate(533,36)"><circle class="ring" r="22"/><circle class="body" r="16"/><g class="knob-pointer"><line x1="0" y1="0" x2="0" y2="-14"/></g></g>
+    {{ btn("load2", 600, 36, "LOAD", w=34, h=14) }}
+
+    {% for ch, x in [(1, 486), (2, 578)] %}
+    {% set side = "left" if ch == 1 else "right" %}
+    {{ knob("ch%d-trim" % ch, x, 98, "TRIM", side=side) }}
+    {{ knob("ch%d-hi" % ch, x, 150, "HI", side=side) }}
+    {{ knob("ch%d-mid" % ch, x, 202, "MID", side=side) }}
+    {{ knob("ch%d-low" % ch, x, 254, "LOW", side=side) }}
+    {{ knob("ch%d-cfx" % ch, x, 310, "CFX", r=17, side=side) }}
+    {{ btn("ch%d-hpcue" % ch, x, 366, "CUE %d" % ch, w=30, h=14) }}
+    {{ vfader("ch%d-fader" % ch, x, 404, 520, "CH %d" % ch) }}
+    {% endfor %}
+
+    {{ knob("mic-level", 410, 202, "MIC", r=12) }}
+    {{ btn("smart-cfx", 410, 266, "SMART CFX", w=30, h=12) }}
+    {{ knob("hp-mix", 410, 366, "HP MIX", r=12) }}
+    {{ knob("hp-level", 410, 426, "HP LEVEL", r=12) }}
+
+    <g class="ctl fader" id="crossfader" data-axis="x" data-min="482" data-max="582">
+      <rect class="ring" x="466" y="540" width="132" height="34" rx="8"/>
+      <line class="slot" x1="482" y1="557" x2="582" y2="557"/>
+      <g class="fader-cap" transform="translate(532,557)"><rect x="-8" y="-13" width="16" height="26" rx="3"/></g>
+    </g>
+
+    {{ knob("master-level", 662, 92, "MASTER", r=16) }}
+    {{ btn("master-cue", 662, 140, "MASTER CUE", w=30, h=12) }}
+    <text class="lbl section" x="662" y="196">BEAT FX</text>
+    {{ btn("fx-select", 662, 236, "FX SELECT", w=30, h=12) }}
+    {{ btn("fx-beat-prev", 648, 296, "", w=18, h=12) }}
+    {{ btn("fx-beat-next", 676, 296, "", w=18, h=12) }}
+    <text class="lbl" x="662" y="324">BEAT</text>
+    {{ knob("fx-depth", 662, 376, "LEVEL/DEPTH", r=16) }}
+    {{ btn("fx-on", 662, 462, "ON/OFF", w=32, round=true) }}
+  </g>
+
+  {# Coach overlay: highlight ring + direction arrow + caption, positioned by controller.js. #}
+  <g id="coach-overlay" pointer-events="none"></g>
+</svg>

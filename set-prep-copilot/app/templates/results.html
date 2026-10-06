@@ -2,7 +2,7 @@
 {% block title %}Results — Set Prep Copilot{% endblock %}
 {% block content %}
 <section class="card stage">
-  <div class="stage-step">Stage 3 of 5</div>
+  <div class="stage-step">Stage 2 of 4</div>
   <h1>Ordered set: {{ playlist_name }}</h1>
   <p class="lede">Set shape: <strong>{{ set_shape.replace('_', ' ') }}</strong> &middot; {{ ordered_tracks|length }} tracks</p>
 
@@ -70,18 +70,13 @@
       <button type="submit" class="button primary">Download rekordbox XML</button>
     </form>
     <p class="hint">
-      Import it in rekordbox via <code>File &gt; Import &gt; rekordbox xml</code>. This adds
-      a new playlist and new cues — it never removes or overwrites any cue you've already
-      hand-set, on this track or any other.
+      In rekordbox, point <code>Preferences &gt; Advanced &gt; Database &gt; rekordbox xml</code>
+      at this file. Then in the sidebar's <strong>rekordbox xml</strong> tree: select everything
+      under <strong>All Tracks</strong>, right-click &gt; <strong>Import To Collection</strong> and
+      allow the overwrite (that's what brings the cues in), then right-click the playlist &gt;
+      <strong>Import Playlist</strong>. Importing only the playlist adds no cues to tracks
+      already in your library.
     </p>
-
-    <a href="/export/spotify/preview" class="button">Create Spotify playlist</a>
-    {% if spotify_playlist_url %}
-    <p class="success"><a href="{{ spotify_playlist_url }}" target="_blank" rel="noopener">Open the ordered playlist on Spotify &rarr;</a></p>
-    {% else %}
-    <p class="hint">Matches each track by ISRC first, falling back to a title/artist search
-      flagged lower-confidence, and lets you confirm matches before anything is created.</p>
-    {% endif %}
   </div>
 
   <a href="/practice" class="button">Start practice session &rarr;</a>

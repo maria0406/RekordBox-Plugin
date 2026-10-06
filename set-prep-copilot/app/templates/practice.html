@@ -2,55 +2,42 @@
 {% block title %}Practice — Set Prep Copilot{% endblock %}
 {% block content %}
 <section class="card stage">
-  <div class="stage-step">Stage 4 of 5 &middot; Practice mode</div>
-  <h1>Walk through every transition</h1>
+  <div class="stage-step">Stage 3 of 4 &middot; Practice mode</div>
+  <h1>Watch each transition, then do it</h1>
   <p class="lede">
-    Click a cue below to see which control to move, on a generic two-deck layout
-    (not any specific controller's exact design). This previews the moves — it
-    doesn't listen to your controller yet.
+    Press <strong>Play demo</strong>: the app plays both tracks and performs the mix, and
+    the controller shows the moves as they happen: which control, which way, and when.
+    Click a move to jump to it. This is a demo; it doesn't listen to your controller yet.
   </p>
 
-  <div class="deck-rig" aria-hidden="false">
-    <div class="deck" id="deck-out">
-      <div class="deck-label">Deck 1 &middot; outgoing</div>
-      <div class="control" data-control="out-play">PLAY</div>
-      <div class="control knob" data-control="out-low">LOW EQ</div>
-      <div class="control knob" data-control="out-filter">CFX</div>
-      <div class="control" data-control="out-loop">LOOP</div>
-      <div class="fader-track"><div class="fader-handle" data-control="out-fader"></div></div>
+  <div class="coach-stage">
+    {% include "_controller.html" %}
+    <div class="coach-caption" aria-live="polite">
+      <div class="coach-title" id="coach-title"></div>
+      <div class="coach-detail" id="coach-detail"></div>
+      <div class="coach-next" id="coach-next"></div>
     </div>
-    <div class="deck" id="deck-in">
-      <div class="deck-label">Deck 2 &middot; incoming</div>
-      <div class="control" data-control="in-play">PLAY</div>
-      <div class="control knob" data-control="in-low">LOW EQ</div>
-      <div class="control knob" data-control="in-filter">CFX</div>
-      <div class="control" data-control="in-loop">LOOP</div>
-      <div class="fader-track"><div class="fader-handle" data-control="in-fader"></div></div>
+    <div class="coach-transport">
+      <button type="button" class="button primary" id="coach-play">Play demo</button>
+      <input type="range" id="coach-scrub" step="0.01" aria-label="Position in the transition">
+      <div class="coach-clock" id="coach-clock"></div>
     </div>
   </div>
 
   {% for t in transitions %}
   <div class="transition-block">
-    <h2>{{ loop.index }}. {{ t.outgoing.name }} &rarr; {{ t.incoming.name }}</h2>
-    <div class="cue-buttons">
-      {% for cue in t.outgoing_cues %}
-      <button type="button" class="cue-btn" style="border-color:{{ cue.color_hex }}"
-              data-side="out" data-cue="{{ cue.name }}" data-color="{{ cue.color_hex }}">
-        <span class="swatch" style="background:{{ cue.color_hex }}"></span>{{ cue.name }}
-      </button>
-      {% endfor %}
-      {% for cue in t.incoming_cues %}
-      <button type="button" class="cue-btn" style="border-color:{{ cue.color_hex }}"
-              data-side="in" data-cue="{{ cue.name }}" data-color="{{ cue.color_hex }}">
-        <span class="swatch" style="background:{{ cue.color_hex }}"></span>{{ cue.name }}
-      </button>
-      {% endfor %}
-    </div>
+    <h2>
+      <button type="button" class="select-transition">{{ loop.index }}. {{ t.outgoing.name }} &rarr; {{ t.incoming.name }}</button>
+    </h2>
+    <div class="cue-buttons move-chips"></div>
   </div>
   {% endfor %}
 </section>
+<script type="application/json" id="practice-data">{{ practice_data | tojson }}</script>
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/js/coach.js"></script>
+<script src="/static/js/controller.js"></script>
 <script src="/static/js/practice.js"></script>
 {% endblock %}

@@ -5,8 +5,8 @@ rekordbox_xml.write_export expects: {track_id: [cue_dict, ...]}.
 
 Cue placement rules, from the design doc's legend table:
 - MIX IN: incoming track, first downbeat of the intro phrase. Hot cue A + memory cue.
-- MIX OUT: outgoing track, start of the outro phrase, lined up with the next
-  track's MIX IN.
+- MIX OUT: outgoing track, start of the last phrase that still leaves
+  TRANSITION_BARS of track to mix over, lined up with the next track's MIX IN.
 - BASS SWAP: 16 bars into the overlap, on a phrase line, on BOTH tracks.
 - FILTER: outgoing track, 8 bars before it should be gone.
 - DROP: incoming track, its first drop.
@@ -21,8 +21,18 @@ def _bar_seconds(bpm: float) -> float:
     return 60.0 / bpm * 4  # 4/4 bar length in seconds
 
 
-def _outro_phrase(phrases: list[dict]) -> dict | None:
-    return phrases[-1] if phrases else None
+# The full transition -- 16 bars blending in, the bass swap, 8 bars of filter,
+# 4 bars of fade (static/js/coach.js) -- needs about 30 bars of outgoing track.
+TRANSITION_BARS = 32
+
+
+def _outro_phrase(phrases: list[dict], n_bars: int) -> dict:
+    """The phrase to mix out from: the latest phrase start that still leaves
+    TRANSITION_BARS before the track ends. The literal last phrase is often
+    only a few bars long, which ran the bass swap off the end of the track."""
+    latest_start = max(0, n_bars - TRANSITION_BARS)
+    fitting = [p for p in phrases if p["start_bar"] <= latest_start]
+    return fitting[-1] if fitting else {"start_bar": latest_start}
 
 
 def _bar_time(downbeats: list[float], bar_index: int) -> float:
@@ -74,7 +84,7 @@ def build_cue_plan(ordered_tracks: list[dict], analyses: dict[str, dict]) -> dic
         })
 
         # MIX OUT: outgoing track's outro phrase start, lined up with MIX IN.
-        outro_phrase = _outro_phrase(out_phrases) or {"start_bar": max(0, len(out_downbeats) - 8)}
+        outro_phrase = _outro_phrase(out_phrases, len(out_downbeats))
         mix_out_time = _bar_time(out_downbeats, outro_phrase["start_bar"])
         cues[out_id].append({
             "name": "MIX OUT", "color_hex": CUE_COLORS["mix_out"], "start_s": mix_out_time,
@@ -108,13 +118,17 @@ def build_cue_plan(ordered_tracks: list[dict], analyses: dict[str, dict]) -> dic
                 "cue_kind": "memory", "hot_cue_index": None, "loop_end_s": None,
             })
 
-        # LOOP 8: outgoing track's outro, an 8-bar safety loop.
+        # LOOP 8: outgoing track's outro, an 8-bar safety loop. rekordbox
+        # silently drops a loop that runs past the end of the track (seen on
+        # a real import), so skip it rather than export one that vanishes.
         loop_start = mix_out_time
         loop_end = loop_start + 8 * _bar_seconds(out_bpm)
-        cues[out_id].append({
-            "name": "LOOP 8", "color_hex": CUE_COLORS["loop_8"], "start_s": loop_start,
-            "cue_kind": "memory", "hot_cue_index": None, "loop_end_s": loop_end,
-        })
+        duration = out_analysis.get("duration")
+        if duration is None or loop_end <= duration:
+            cues[out_id].append({
+                "name": "LOOP 8", "color_hex": CUE_COLORS["loop_8"], "start_s": loop_start,
+                "cue_kind": "memory", "hot_cue_index": None, "loop_end_s": loop_end,
+            })
 
     return cues
 
@@ -158,3 +172,46 @@ def build_transition_notes(
         )
 
     return notes
+
+
+def merge_coincident_memory_cues(track_cues: list[dict]) -> list[dict]:
+    """rekordbox keeps only one plain memory cue per position: importing
+    MIX OUT and BASS SWAP at the same millisecond silently dropped one
+    (seen in a real rekordbox 7 import, Oct 2026). Merge them into a single
+    cue named "MIX OUT + BASS SWAP" so the DJ still sees both instructions.
+    Hot cues and loops are left alone -- rekordbox kept those alongside a
+    memory cue at the same spot. Only for export: practice mode keys its
+    animations off the individual cue names."""
+    merged: list[dict] = []
+    by_position: dict[int, dict] = {}
+    for cue in track_cues:
+        if cue["cue_kind"] != "memory" or cue.get("loop_end_s") is not None:
+            merged.append(cue)
+            continue
+        position_ms = round(cue["start_s"] * 1000)
+        existing = by_position.get(position_ms)
+        if existing is None:
+            existing = dict(cue)
+            by_position[position_ms] = existing
+            merged.append(existing)
+        elif cue["name"] not in existing["name"].split(" + "):
+            existing["name"] = f"{existing['name']} + {cue['name']}"
+    return merged
+
+
+def transition_timing(out_cues: list[dict], in_cues: list[dict]) -> dict | None:
+    """The cue times the Move Coach conductor (static/js/coach.js) needs for
+    one transition: {"mixOutS", "bassSwapS", "mixInS"}, or None if the plan
+    has no MIX OUT/MIX IN for it. The outgoing track can carry two BASS
+    SWAPs (one from mixing it in, one for mixing it out); the one at or after
+    MIX OUT is this transition's."""
+    mix_out = next((c["start_s"] for c in out_cues if c["name"] == "MIX OUT"), None)
+    mix_in = next((c["start_s"] for c in in_cues if c["name"] == "MIX IN"), None)
+    if mix_out is None or mix_in is None:
+        return None
+    bass_swap = min(
+        (c["start_s"] for c in out_cues if c["name"] == "BASS SWAP" and c["start_s"] >= mix_out),
+        default=None,
+    )
+    return {"mixOutS": mix_out, "bassSwapS": bass_swap, "mixInS": mix_in}
+

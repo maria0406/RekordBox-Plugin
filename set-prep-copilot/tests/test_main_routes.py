@@ -1,6 +1,6 @@
 """Route-level tests for app.main's new review/control-flow endpoints, using
-FastAPI's TestClient with auth/rekordbox_db/spotify_client monkeypatched so
-these never need a real Spotify login or rekordbox install."""
+FastAPI's TestClient with rekordbox_db monkeypatched so these never need a
+real rekordbox install."""
 import os
 import sys
 import unittest
@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from app import auth, cues, session_state  # noqa: E402
+from app import cues, session_state  # noqa: E402
 from app.main import app  # noqa: E402
 
 client = TestClient(app)
@@ -29,11 +29,8 @@ def _fake_analysis(bpm=124.0):
 class TestMainRoutesBase(unittest.TestCase):
     def setUp(self):
         session_state.reset()
-        self._auth_patch = mock.patch.object(auth, "is_authenticated", return_value=True)
-        self._auth_patch.start()
 
     def tearDown(self):
-        self._auth_patch.stop()
         session_state.reset()
 
 
@@ -110,52 +107,6 @@ class TestNudgeCue(TestMainRoutesBase):
         self.assertEqual(session_state.STATE.cue_plan["1"][0]["start_s"], 0.0)
 
 
-class TestSpotifyPreviewAndConfirm(TestMainRoutesBase):
-    def _seed(self):
-        session_state.STATE.playlist_name = "My Set"
-        session_state.STATE.ordered_tracks = [
-            {"id": "1", "name": "One", "artist": "A", "isrc": "ISRC1"},
-            {"id": "2", "name": "Two", "artist": "B", "isrc": None},
-        ]
-
-    def test_preview_matches_and_renders(self):
-        self._seed()
-        matched = {"uri": "spotify:track:abc", "name": "One", "artists": [{"name": "A"}]}
-
-        def fake_match(isrc, name, artist):
-            if isrc == "ISRC1":
-                return matched, "isrc"
-            return None, "none"
-
-        with mock.patch("app.spotify_client.match_track_by_isrc_then_text", side_effect=fake_match):
-            resp = client.get("/export/spotify/preview")
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("One", resp.text)
-        self.assertEqual(session_state.STATE.spotify_matches["1"]["confidence"], "isrc")
-        self.assertEqual(session_state.STATE.spotify_matches["2"]["confidence"], "none")
-
-    def test_confirm_creates_playlist_with_only_checked_tracks(self):
-        self._seed()
-        matched1 = {"uri": "spotify:track:one", "name": "One", "artists": [{"name": "A"}]}
-        matched2 = {"uri": "spotify:track:two", "name": "Two", "artists": [{"name": "B"}]}
-        session_state.STATE.spotify_matches = {
-            "1": {"track": matched1, "confidence": "isrc"},
-            "2": {"track": matched2, "confidence": "text"},
-        }
-
-        with mock.patch("app.spotify_client.create_playlist", return_value={
-            "id": "pl123", "external_urls": {"spotify": "https://open.spotify.com/playlist/pl123"},
-        }) as create_mock, mock.patch("app.spotify_client.add_items_to_playlist") as add_mock:
-            resp = client.post(
-                "/export/spotify/confirm", data={"include_1": "on"}, follow_redirects=False,
-            )
-
-        self.assertEqual(resp.status_code, 303)
-        create_mock.assert_called_once()
-        add_mock.assert_called_once_with("pl123", ["spotify:track:one"])
-        self.assertEqual(session_state.STATE.spotify_playlist_url, "https://open.spotify.com/playlist/pl123")
-
-
 class TestAnalyzeSkipsMissingFiles(TestMainRoutesBase):
     def test_missing_file_is_skipped_not_fatal(self):
         fake_tracks = [
@@ -186,6 +137,24 @@ class TestAnalyzeSkipsMissingFiles(TestMainRoutesBase):
         self.assertEqual(len(session_state.STATE.skipped_tracks), 1)
         self.assertEqual(session_state.STATE.skipped_tracks[0]["name"], "Missing")
 
+    def test_export_keeps_rekordbox_bpm_and_key(self):
+        """Importing the XML overwrites the library's BPM/key fields, so they
+        must be rekordbox's own values, not ours."""
+        fake_tracks = [
+            {"track_id": str(i), "name": f"T{i}", "artist": "A", "location": f"/{i}.mp3",
+             "album": None, "total_time": 200, "average_bpm": 124.0, "tonality": "Dm",
+             "isrc": None, "raw_attrib": None}
+            for i in (1, 2)
+        ]
+        with mock.patch("app.main.rekordbox_db.get_playlist_tracks", return_value=fake_tracks), \
+             mock.patch("app.main.analyze_track", side_effect=lambda p: _fake_analysis(123.05)):
+            client.post("/analyze", data={"playlist_id": "42", "playlist_name": "My Set"}, follow_redirects=False)
+
+        for track in session_state.STATE.ordered_tracks:
+            self.assertEqual(track["average_bpm"], 124.0)
+            self.assertEqual(track["tonality"], "Dm")
+            self.assertEqual(track["bpm"], 123.05)  # ours, still used for ordering
+
     def test_locked_opener_and_closer_are_respected(self):
         fake_tracks = [
             {"track_id": str(i), "name": f"T{i}", "artist": "A", "location": f"/{i}.mp3",
@@ -209,6 +178,38 @@ class TestAnalyzeSkipsMissingFiles(TestMainRoutesBase):
         self.assertEqual(ordered_ids[0], "3")
         self.assertEqual(ordered_ids[-1], "2")
 
+    def test_empty_playlist_shows_error_instead_of_silent_bounce(self):
+        """A playlist with zero tracks (e.g. rekordbox's own auto-created
+        'CUE Analysis Playlist') must not silently redirect to /results and
+        bounce back to /setup with no explanation -- it should explain why,
+        on the page, in the same request."""
+        with mock.patch("app.main.rekordbox_db.get_playlist_tracks", return_value=[]), \
+             mock.patch("app.main.rekordbox_db.list_playlists", return_value=[]):
+            resp = client.post(
+                "/analyze",
+                data={"playlist_id": "200000", "playlist_name": "CUE Analysis Playlist", "set_shape": "build"},
+                follow_redirects=False,
+            )
 
-if __name__ == "__main__":
-    unittest.main()
+        self.assertEqual(resp.status_code, 200)  # re-rendered setup.html, not a redirect
+        self.assertIn("no tracks", resp.text)
+        self.assertEqual(session_state.STATE.ordered_tracks, [])
+
+    def test_all_tracks_unreadable_shows_error_instead_of_silent_bounce(self):
+        fake_tracks = [
+            {"track_id": "1", "name": "Ghost", "artist": "A", "location": "/missing.mp3",
+             "album": None, "total_time": 200, "average_bpm": 124.0, "tonality": "8A",
+             "isrc": None, "raw_attrib": None},
+        ]
+        with mock.patch("app.main.rekordbox_db.get_playlist_tracks", return_value=fake_tracks), \
+             mock.patch("app.main.rekordbox_db.list_playlists", return_value=[]), \
+             mock.patch("app.main.analyze_track", side_effect=FileNotFoundError("no such file")):
+            resp = client.post(
+                "/analyze",
+                data={"playlist_id": "42", "playlist_name": "My Set", "set_shape": "build"},
+                follow_redirects=False,
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("could be analyzed", resp.text)
+        self.assertEqual(session_state.STATE.ordered_tracks, [])

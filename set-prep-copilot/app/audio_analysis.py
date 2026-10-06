@@ -8,7 +8,12 @@ What's solid vs. what's a tunable heuristic
 --------------------------------------------
 - BPM / beat grid (`bpm`, `beat_times`): librosa's beat tracker is mature and
   reliable for fixed-tempo 4/4 house/techno, which is this product's target
-  material. Trust this.
+  material. Trust the beat times. `bpm` is fitted to those beat times
+  (`bpm_from_beats`), NOT librosa's own tempo estimate: that estimate comes
+  from a tempogram whose bins are ~3 BPM apart around 124 (sr 44.1k, hop
+  512 -> 60*44100/512/lag = 120.19, 123.05, 126.05, ...). A 300-track
+  catalog landed on just 15 distinct values, and a track rekordbox reads as
+  124.00 came out as 123.05.
 - Downbeats/bars (`downbeats`): a simple "every 4th beat starting at the
   first beat" heuristic, not true downbeat detection. Fine for fixed-tempo
   4/4 material per the design doc; would need real downbeat detection for
@@ -58,6 +63,19 @@ _MINOR_PROFILE = np.array(
 )
 
 BASS_BAND_HZ = (30.0, 200.0)  # low-frequency band used for bass-presence RMS
+
+
+MIN_BEATS_FOR_FIT = 16
+
+
+def bpm_from_beats(beat_times: list[float], fallback: float) -> float:
+    """Least-squares slope of beat time vs. beat index. Each beat time is
+    quantized to a ~12 ms frame, but the fit averages that out over the
+    whole track, giving sub-0.1 BPM resolution on a steady 4/4 track."""
+    if len(beat_times) < MIN_BEATS_FOR_FIT:
+        return fallback
+    slope = np.polyfit(np.arange(len(beat_times)), np.asarray(beat_times), 1)[0]
+    return float(60.0 / slope) if slope > 0 else fallback
 
 
 def _pearson_corr(a: np.ndarray, b: np.ndarray) -> float:
@@ -228,8 +246,8 @@ def analyze_track(file_path: str) -> dict:
     duration = float(len(y) / sr)
 
     tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-    bpm = float(np.atleast_1d(tempo)[0])
     beat_times = librosa.frames_to_time(beat_frames, sr=sr).tolist()
+    bpm = bpm_from_beats(beat_times, fallback=float(np.atleast_1d(tempo)[0]))
 
     downbeats = beat_times[0::4]
     bars = _bars_from_downbeats(downbeats, duration)

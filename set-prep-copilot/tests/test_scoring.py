@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.scoring import bpm_score, camelot_score, order_tracks
+from app.scoring import bpm_score, camelot_score, energy_score, order_tracks, _energy_level, _normalize_energy
 
 
 class TestCamelotScore(unittest.TestCase):
@@ -37,6 +37,44 @@ class TestBpmScore(unittest.TestCase):
 
     def test_far_off(self):
         self.assertEqual(bpm_score(124, 90), 0.0)
+
+
+class TestEnergyLevel(unittest.TestCase):
+    def test_buckets_into_1_to_10(self):
+        self.assertEqual(_energy_level(0.0), 1)
+        self.assertEqual(_energy_level(1.0), 10)
+        self.assertEqual(_energy_level(0.05), 1)
+        self.assertEqual(_energy_level(0.55), 6)
+
+    def test_normalize_energy_sets_both_norm_and_level(self):
+        tracks = [{"energy": 0.0}, {"energy": 5.0}, {"energy": 10.0}]
+        _normalize_energy(tracks)
+        self.assertEqual(tracks[0]["energy_level"], 1)
+        self.assertEqual(tracks[2]["energy_level"], 10)
+        self.assertIn("energy_norm", tracks[1])
+
+
+class TestEnergyScore(unittest.TestCase):
+    def test_no_predecessor_scores_fit_only(self):
+        # Level 5 with no predecessor, mid-set during a build (target ~ mid):
+        # should just reflect fit, no smoothness term to apply.
+        score = energy_score(None, current_level=5, position_fraction=0.5, set_shape="build")
+        self.assertGreater(score, 0.0)
+
+    def test_one_level_jump_is_fully_smooth(self):
+        a = energy_score(5, 6, position_fraction=0.5, set_shape="build")
+        b = energy_score(5, 5, position_fraction=0.5, set_shape="build")
+        # Both are within the "smooth" band (jump <= 1); scores should be close,
+        # not penalized relative to each other for smoothness.
+        self.assertAlmostEqual(a, b, delta=0.21)  # differ only by the "fit" term
+
+    def test_large_jump_is_penalized_vs_small_jump(self):
+        small_jump = energy_score(5, 6, position_fraction=0.5, set_shape="build")
+        big_jump = energy_score(5, 10, position_fraction=0.5, set_shape="build")
+        self.assertGreater(small_jump, big_jump)
+
+    def test_custom_shape_is_neutral(self):
+        self.assertEqual(energy_score(1, 10, position_fraction=0.5, set_shape="custom"), 0.5)
 
 
 class TestOrderTracks(unittest.TestCase):

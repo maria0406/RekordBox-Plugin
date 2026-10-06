@@ -52,6 +52,15 @@ class TestAudioAnalysis(unittest.TestCase):
             f"BPM {bpm} not within tolerance of any of {candidates}",
         )
 
+    def test_bpm_from_beats_beats_tempogram_resolution(self):
+        from app.audio_analysis import bpm_from_beats
+        # A real 124.00 BPM grid, snapped to librosa's ~11.6 ms frames the
+        # way beat_track reports it. The tempogram would say 123.05.
+        frame = 512 / 44100
+        beats = [round(i * 60 / 124.0 / frame) * frame for i in range(400)]
+        self.assertAlmostEqual(bpm_from_beats(beats, fallback=123.05), 124.0, delta=0.05)
+        self.assertEqual(bpm_from_beats(beats[:5], fallback=123.05), 123.05)
+
     def test_shapes_and_types(self):
         result = analyze_track(self.tmp.name)
 

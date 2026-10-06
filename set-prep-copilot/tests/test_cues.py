@@ -4,7 +4,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.cues import build_cue_plan, build_transition_notes, _format_mmss
+from app.cues import build_cue_plan, build_transition_notes, merge_coincident_memory_cues, _format_mmss
 from app.rekordbox_xml import CUE_COLORS
 
 
@@ -50,10 +50,45 @@ class TestBuildCuePlan(unittest.TestCase):
         mix_out = next(c for c in plan["t1"] if c["name"] == "MIX OUT")
         self.assertEqual(mix_out["color_hex"], CUE_COLORS["mix_out"])
 
+    def test_mix_out_leaves_room_for_the_transition(self):
+        out = _fake_analysis()  # 64 bars
+        out["phrases"] = [{"start_bar": 0, "length": 32}, {"start_bar": 32, "length": 24}, {"start_bar": 56, "length": 8}]
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": _fake_analysis()})
+        mix_out = next(c for c in plan["t1"] if c["name"] == "MIX OUT")
+        self.assertEqual(mix_out["start_s"], out["downbeats"][32])  # not the 8-bar tail phrase at bar 56
+
+    def test_loop_past_track_end_is_skipped(self):
+        out = _fake_analysis()
+        out["duration"] = out["downbeats"][32] + 2.0  # MIX OUT is bar 32; an 8-bar loop would overrun
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": _fake_analysis()})
+        self.assertNotIn("LOOP 8", {c["name"] for c in plan["t1"]})
+
     def test_single_track_no_crash(self):
         ordered = [{"id": "solo"}]
         plan = build_cue_plan(ordered, {"solo": _fake_analysis()})
         self.assertEqual(plan, {"solo": []})
+
+
+def _cue(name, start_s, kind="memory", loop_end_s=None):
+    return {"name": name, "color_hex": "#FF0000", "start_s": start_s, "cue_kind": kind,
+            "hot_cue_index": 0 if kind == "hot" else None, "loop_end_s": loop_end_s}
+
+
+class TestMergeCoincidentMemoryCues(unittest.TestCase):
+    def test_same_time_memory_cues_merge_into_one(self):
+        merged = merge_coincident_memory_cues([
+            _cue("FILTER", 350.041), _cue("MIX OUT", 365.540), _cue("BASS SWAP", 365.5401),
+        ])
+        self.assertEqual([c["name"] for c in merged], ["FILTER", "MIX OUT + BASS SWAP"])
+
+    def test_hot_cues_and_loops_are_not_merged(self):
+        cues = [_cue("MIX IN", 1.0, kind="hot"), _cue("MIX IN", 1.0), _cue("LOOP 8", 1.0, loop_end_s=16.0)]
+        self.assertEqual(len(merge_coincident_memory_cues(cues)), 3)
+
+    def test_does_not_mutate_input(self):
+        cues = [_cue("MIX OUT", 2.0), _cue("BASS SWAP", 2.0)]
+        merge_coincident_memory_cues(cues)
+        self.assertEqual(cues[0]["name"], "MIX OUT")
 
 
 class TestFormatMmSs(unittest.TestCase):

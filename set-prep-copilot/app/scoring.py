@@ -10,8 +10,22 @@
 Approach: a greedy pass (always pick the best next track), followed by a
 simple swap-improvement pass, per the design doc -- fast and good enough
 for 10-30 tracks.
+
+Energy model is calibrated against Mixed In Key's published energy-rating
+system (mixedinkey.com/harmonic-mixing-guide/sorting-playlists-by-energy-level/),
+the closest named competitor already cited in the design doc, rather than an
+invented scale: a discrete 1-10 level (not a continuous 0-1 score) with an
+explicit rule straight from that guide -- "avoid jumping more than one
+energy level between consecutive tracks" for a smooth transition. We don't
+have genre-aware absolute calibration (MIK's levels are partly
+genre-defined, e.g. "5 = where people start dancing"), so a track's level
+is still derived from its own energy signal (mean RMS of the audio) normalized across the playlist
+and bucketed into 10 even bins -- the scale and the smoothness rule are
+MIK's; the per-track calibration is ours.
 """
 from __future__ import annotations
+
+import math
 
 SET_SHAPES = ("warm_up", "build", "peak", "cool_down", "custom")
 
@@ -79,13 +93,40 @@ def _target_energy_fraction(position_fraction: float, set_shape: str) -> float:
     return 0.5  # custom/unspecified: energy is not scored, treat as neutral
 
 
-def energy_score(track_energy: float, position_fraction: float, set_shape: str) -> float:
-    """track_energy is a 0-1 normalized scalar (e.g. mean RMS, min-max
-    normalized across the playlist before calling this)."""
+def _energy_level(energy_norm: float) -> int:
+    """0-1 normalized energy -> a discrete 1-10 level, Mixed In Key style."""
+    return min(10, max(1, math.ceil(energy_norm * 10)))
+
+
+def _target_energy_level(position_fraction: float, set_shape: str) -> int:
+    fraction = _target_energy_fraction(position_fraction, set_shape)
+    return min(10, max(1, round(fraction * 9) + 1))
+
+
+def energy_score(prev_level: int | None, current_level: int, position_fraction: float, set_shape: str) -> float:
+    """Two components, per Mixed In Key's own energy-mixing guidance:
+    - fit: how close `current_level` is to where this position in the set
+      shape wants it (the design doc's "score rises when the move matches
+      the chosen set shape").
+    - smoothness: MIK's explicit rule -- a jump of more than one level
+      between consecutive tracks breaks a smooth transition, so it's
+      penalized on a curve, not just capped.
+    `prev_level` is None for an opening slot with no predecessor to judge
+    smoothness against -- fit alone decides that case.
+    """
     if set_shape == "custom":
         return 0.5
-    target = _target_energy_fraction(position_fraction, set_shape)
-    return max(0.0, 1.0 - abs(track_energy - target))
+
+    target_level = _target_energy_level(position_fraction, set_shape)
+    fit = max(0.0, 1.0 - abs(current_level - target_level) / 9.0)
+
+    if prev_level is None:
+        return fit
+
+    jump = abs(current_level - prev_level)
+    smoothness = 1.0 if jump <= 1 else max(0.0, 1.0 - (jump - 1) * 0.3)
+
+    return 0.4 * fit + 0.6 * smoothness
 
 
 WEIGHTS = {"bpm": 0.4, "key": 0.35, "energy": 0.25}
@@ -94,7 +135,9 @@ WEIGHTS = {"bpm": 0.4, "key": 0.35, "energy": 0.25}
 def transition_score(track_a: dict, track_b: dict, b_position_fraction: float, set_shape: str) -> float:
     bpm = bpm_score(track_a["bpm"], track_b["bpm"])
     key = camelot_score(track_a["camelot_key"], track_b["camelot_key"])
-    energy = energy_score(track_b.get("energy_norm", 0.5), b_position_fraction, set_shape)
+    energy = energy_score(
+        track_a.get("energy_level"), track_b.get("energy_level", 5), b_position_fraction, set_shape,
+    )
     return WEIGHTS["bpm"] * bpm + WEIGHTS["key"] * key + WEIGHTS["energy"] * energy
 
 
@@ -103,7 +146,9 @@ def _normalize_energy(tracks: list[dict]) -> None:
     lo, hi = min(values), max(values)
     span = (hi - lo) or 1.0
     for t in tracks:
-        t["energy_norm"] = (t.get("energy", 0.0) - lo) / span
+        norm = (t.get("energy", 0.0) - lo) / span
+        t["energy_norm"] = norm
+        t["energy_level"] = _energy_level(norm)
 
 
 def order_tracks(
@@ -143,11 +188,12 @@ def order_tracks(
 
         if prev_id is None:
             # No predecessor to score a transition from (e.g. slot 0 is
-            # open): pick the remaining track whose energy best matches
-            # this position's target, so the set still opens on-shape.
+            # open): pick the remaining track whose energy level best
+            # matches this position's target, so the set still opens on-shape.
+            target_level = _target_energy_level(position_fraction, set_shape)
             best_id = min(
                 remaining,
-                key=lambda tid: abs(by_id[tid]["energy_norm"] - _target_energy_fraction(position_fraction, set_shape)),
+                key=lambda tid: abs(by_id[tid]["energy_level"] - target_level),
             )
         else:
             best_id = max(
