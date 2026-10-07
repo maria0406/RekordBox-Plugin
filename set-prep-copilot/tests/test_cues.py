@@ -121,6 +121,22 @@ class TestBuildCuePlan(unittest.TestCase):
         plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": _fake_analysis(), "t2": track})
         self.assertNotIn("FAKE DROP", {c["name"] for c in plan["t2"]})
 
+    def test_ways_out_every_sixteen_bars_back_to_the_track_arriving(self):
+        out = _fake_analysis(n_bars=160, phrase_starts=(0, 32, 64, 96, 128))  # opener; MIX OUT at bar 128
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": _fake_analysis()})
+        outs = {c["name"]: c["start_s"] for c in plan["t1"] if c["name"] == "MIX OUT" or c["name"].startswith("OUT -")}
+        self.assertEqual(outs, {
+            "OUT -96": out["downbeats"][32], "OUT -80": out["downbeats"][48], "OUT -64": out["downbeats"][64],
+            "OUT -48": out["downbeats"][80], "OUT -32": out["downbeats"][96],
+            "OUT -16": out["downbeats"][112], "MIX OUT": out["downbeats"][128],
+        })
+
+    def test_no_way_out_during_the_tracks_own_mix_in(self):
+        tracks = [_fake_analysis(n_bars=96, phrase_starts=(0, 32, 64)) for _ in range(3)]  # MIX OUT at bar 64
+        plan = build_cue_plan([{"id": "a"}, {"id": "b"}, {"id": "c"}], dict(zip("abc", tracks)))
+        outs = sorted(c["bar"] for c in plan["b"] if c["name"].startswith("OUT -"))
+        self.assertEqual(outs, [32, 48])  # mixed in at bar 0: nothing before bar 32
+
     def test_full_set_has_no_stacked_cues(self):
         ordered = [{"id": f"t{i}"} for i in range(4)]
         analyses = {}

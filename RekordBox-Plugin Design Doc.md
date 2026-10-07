@@ -111,6 +111,7 @@ rekordbox offers two kinds of cues, and the scheme uses both:
 | Safety loop | LOOP 8 | Lemon | Memory loop (8 bars) | Outgoing track: the last 8 bars of the transition, to buy time if the blend needs longer |
 | Alternate start | LATE IN | Turquoise | Memory cue | Incoming track: the phrase line where the full arrangement arrives, to skip a long intro |
 | Alternate exit | EARLY OUT | Rose | Memory cue | Outgoing track: the phrase line where its first breakdown starts, to leave before the outro |
+| Earlier way out | OUT -16 / -32 / -48 / ... | (app only) | Memory cue | Outgoing track: every 16 bars before MIX OUT, back to 32 bars after the track's own MIX IN, so a playing track never goes more than 16 bars without a way out |
 | Hold back the drop | FAKE DROP | (app only) | Memory cue | Any track: the last bar of the build out of its first breakdown; loop it, cut the bass or echo out, then let the drop hit |
 
 No two cues on a track share a spot (at least one bar apart). When two would collide, the higher-priority cue keeps the spot: actions (bass swap, filter, loop) move later a bar at a time, while markers (drop, alternates, fake drop) are left out rather than moved off the music they mark.

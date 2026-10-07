@@ -14,7 +14,15 @@ Cue placement rules, from the design doc's legend table:
 - LOOP 8: outgoing track, the last 8 bars of the transition, a safety loop
   to stretch the blend.
 
-Alternate mix points, so a DJ isn't limited to one way in and one way out:
+Mix opportunities on the phrase grid, so a set never runs 100 bars with
+nowhere to mix:
+- OUT -16 / OUT -32 / OUT -48 / ...: outgoing track, every 16 bars before
+  MIX OUT, back to 32 bars after the track's own MIX IN (32 bars into the
+  opener) -- start the same transition earlier. Once a track is fully in,
+  there's never more than 16 bars without a way out.
+
+Alternate mix points from the music itself, so a DJ isn't limited to one
+way in and one way out:
 - LATE IN: incoming track, the phrase line where its full arrangement first
   arrives -- start here to skip a long intro.
 - EARLY OUT: outgoing track, the phrase line where its first breakdown
@@ -51,12 +59,27 @@ FULL_ARRANGEMENT_FRACTION = 0.85
 # this far from the main MIX IN / MIX OUT.
 MIN_ALTERNATE_GAP_BARS = 16
 
+# Extra ways out: every MIX_OPTION_SPACING_BARS on the phrase grid.
+MIX_OPTION_SPACING_BARS = 16
+
 # Lower number wins a contested spot. Action cues (things to do) move later
-# by a bar until they fit; marker cues (things that are there in the music)
-# are left out instead -- a DROP moved off the drop would be wrong.
+# by a bar until they fit; marker cues (things that are there in the music,
+# or optional places to act) are left out instead -- a DROP moved off the
+# drop would be wrong. Grid ways out (OUT -16, ...) rank just below the
+# action cues; see _priority.
 _PRIORITY = {"MIX IN": 0, "MIX OUT": 0, "BASS SWAP": 1, "FILTER": 2, "LOOP 8": 3,
              "DROP": 4, "LATE IN": 5, "EARLY OUT": 5, "FAKE DROP": 6}
 _MARKERS = {"DROP", "LATE IN", "EARLY OUT", "FAKE DROP"}
+
+
+def _priority(cue: dict) -> float:
+    # Ways out outrank the other markers: keeping a mix opportunity every
+    # 16 bars matters more than flagging a drop in the same bar.
+    return 3.5 if cue["name"].startswith("OUT -") else _PRIORITY.get(cue["name"], 9)
+
+
+def _is_marker(cue: dict) -> bool:
+    return cue["name"] in _MARKERS or cue["name"].startswith("OUT -")
 MAX_SHIFT_BARS = 4
 
 
@@ -128,6 +151,22 @@ def _early_out(analysis: dict, mix_out_bar: int) -> dict | None:
     return _cue("EARLY OUT", "early_out", _bar_time(downbeats, bar), bar)
 
 
+def _out_options(analysis: dict, mix_in_bar: int | None, mix_out_bar: int) -> list[dict]:
+    """OUT -16/-32/-48/...: earlier starts for the same transition, every
+    16 bars back from MIX OUT. Not before the track has properly arrived --
+    32 bars into it, and 32 bars after its own MIX IN when it was mixed in
+    (its own blend in is over by then)."""
+    downbeats = analysis.get("downbeats") or []
+    earliest = max(32, (mix_in_bar or 0) + 32)
+    options = []
+    k = 1
+    while mix_out_bar - MIX_OPTION_SPACING_BARS * k >= earliest:
+        bar = mix_out_bar - MIX_OPTION_SPACING_BARS * k
+        options.append(_cue(f"OUT -{MIX_OPTION_SPACING_BARS * k}", "out_option", _bar_time(downbeats, bar), bar))
+        k += 1
+    return options
+
+
 def _fake_drop(analysis: dict) -> dict | None:
     """Last bar of the build out of the first breakdown, i.e. the bar right
     before the beat comes back -- only if the beat really does come back
@@ -152,11 +191,11 @@ def _resolve_collisions(track_cues: list[dict], downbeats: list[float], bar_s: f
     def clashes(start: float) -> bool:
         return any(abs(start - k["start_s"]) < bar_s * 0.99 for k in kept)
 
-    for cue in sorted(track_cues, key=lambda c: (_PRIORITY.get(c["name"], 9), c["start_s"])):
+    for cue in sorted(track_cues, key=lambda c: (_priority(c), c["start_s"])):
         if not clashes(cue["start_s"]):
             kept.append(cue)
             continue
-        if cue["name"] in _MARKERS or cue.get("bar") is None:
+        if _is_marker(cue) or cue.get("bar") is None:
             continue
         for shift in range(1, MAX_SHIFT_BARS + 1):
             bar = cue["bar"] + shift
@@ -250,6 +289,7 @@ def build_cue_plan(ordered_tracks: list[dict], analyses: dict[str, dict]) -> dic
             early_out = _early_out(analysis, mix_out_bars[track_id])
             if early_out:
                 cues[track_id].append(early_out)
+            cues[track_id].extend(_out_options(analysis, mix_in_bars.get(track_id), mix_out_bars[track_id]))
         fake_drop = _fake_drop(analysis)
         if fake_drop:
             cues[track_id].append(fake_drop)

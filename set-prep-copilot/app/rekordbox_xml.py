@@ -49,6 +49,7 @@ CUE_COLORS = {
     # Pioneer's palette has only 8 colors and all are taken; rekordbox ignores
     # memory-cue colors on import anyway, so this one only shows in the app.
     "fake_drop": "#B266FF",  # Light violet
+    "out_option": "#FF7A7A",  # Light red, app only: extra ways out (OUT -16, -32, ...)
 }
 
 _TYPE_CUE = "0"

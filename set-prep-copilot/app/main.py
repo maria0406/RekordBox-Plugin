@@ -28,6 +28,7 @@ CUE_LEGEND = [
     {"name": "LOOP 8", "color": rekordbox_xml.CUE_COLORS["loop_8"], "action": "Safety loop", "where": "Outgoing track: last 8 bars of the transition, to stretch the blend"},
     {"name": "LATE IN", "color": rekordbox_xml.CUE_COLORS["late_in"], "action": "Alternate start", "where": "Incoming track: where the full beat arrives, to skip a long intro"},
     {"name": "EARLY OUT", "color": rekordbox_xml.CUE_COLORS["early_out"], "action": "Alternate exit", "where": "Outgoing track: its first breakdown, to leave before the outro"},
+    {"name": "OUT -16, -32, ...", "color": rekordbox_xml.CUE_COLORS["out_option"], "action": "Earlier way out", "where": "Outgoing track: every 16 bars before MIX OUT; start the same transition here"},
     {"name": "FAKE DROP", "color": rekordbox_xml.CUE_COLORS["fake_drop"], "action": "Hold back the drop", "where": "Any track: last bar of a build-up; loop it or cut the bass, then let the drop hit"},
 ]
 
