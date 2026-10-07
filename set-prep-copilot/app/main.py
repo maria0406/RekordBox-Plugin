@@ -10,12 +10,14 @@ from fastapi.templating import Jinja2Templates
 
 from . import config, cues, rekordbox_db, rekordbox_xml, scoring, session_state
 from .audio_analysis import analyze_track
+from .overlay.routes import router as overlay_router
 
 APP_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
 app = FastAPI(title="Set Prep Copilot")
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
+app.include_router(overlay_router)  # Move Coach overlay over rekordbox (app/overlay)
 
 CUE_LEGEND = [
     {"name": "MIX IN", "color": rekordbox_xml.CUE_COLORS["mix_in"], "action": "Start the blend", "where": "Incoming track: hot cue A, first downbeat of the intro phrase"},

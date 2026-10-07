@@ -1,0 +1,36 @@
+<!doctype html>
+{# Compact Move Coach for the always-on-top window over rekordbox
+   (python -m app.overlay). Standalone, not base.html: no nav, transparent
+   background so only the controller and caption float over rekordbox. #}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Move Coach</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="overlay-body">
+  <div class="overlay-card">
+    <div class="overlay-head">
+      <button type="button" class="button tiny" id="ov-prev" aria-label="Previous transition">&lsaquo;</button>
+      <div class="overlay-transition" id="ov-transition"></div>
+      <button type="button" class="button tiny" id="ov-next" aria-label="Next transition">&rsaquo;</button>
+    </div>
+    {% include "_controller.html" %}
+    <div class="coach-caption" aria-live="polite">
+      <div class="coach-title" id="coach-title"></div>
+      <div class="coach-detail" id="coach-detail"></div>
+      <div class="coach-next" id="coach-next"></div>
+    </div>
+    <div class="overlay-foot">
+      <span class="overlay-status" id="ov-status"></span>
+      <button type="button" class="button tiny" id="ov-sync-start" title="Use if the coach drifted: restart its clock for the outgoing deck at the track's start">Re-sync: track start</button>
+      <button type="button" class="button tiny" id="ov-sync-mix" title="Set the outgoing deck's clock to 8 bars before MIX OUT">Re-sync: 8 bars to mix</button>
+    </div>
+  </div>
+  <script type="application/json" id="overlay-data">{{ overlay_data | tojson }}</script>
+  <script src="/static/js/coach.js"></script>
+  <script src="/static/js/controller.js"></script>
+  <script src="/static/js/overlay.js"></script>
+</body>
+</html>

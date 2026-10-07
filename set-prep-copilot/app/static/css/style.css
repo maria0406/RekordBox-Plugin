@@ -211,3 +211,18 @@ svg.controller .arrow-head { fill: var(--accent); }
   cursor: pointer;
 }
 .cue-btn:hover { background: #2c2c33; }
+
+/* Move Coach overlay window over rekordbox (templates/overlay.html) */
+html:has(.overlay-body), .overlay-body { background: transparent; }
+.overlay-body { margin: 0; padding: 6px; }
+.overlay-card {
+  background: rgba(18, 18, 20, 0.88); border: 1px solid var(--border); border-radius: 14px;
+  padding: 8px 12px 10px; backdrop-filter: blur(6px);
+}
+.overlay-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.overlay-transition { flex: 1; font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.overlay-card svg.controller { max-height: none; }
+.overlay-card .coach-caption { min-height: 0; margin-top: 6px; }
+.overlay-card .coach-title { font-size: 17px; }
+.overlay-foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.overlay-status { flex: 1; font-size: 11px; color: var(--text-dim); }

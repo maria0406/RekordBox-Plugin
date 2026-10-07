@@ -11,3 +11,5 @@ numpy>=1.26
 soundfile>=0.12
 mido>=1.3  # spikes/midi_probe.py: listen to the FLX4 alongside rekordbox
 python-rtmidi>=1.5  # CoreMIDI backend for mido
+pywebview>=5.0  # python -m app.overlay: always-on-top coach window over rekordbox
+pyobjc-framework-Quartz>=10.0; sys_platform == "darwin"  # find the rekordbox window to place the overlay

@@ -1,0 +1,18 @@
+{
+  "_note": "UNVERIFIED defaults from the DDJ-400/FLX4 family's published MIDI layout. Run spikes/midi_probe.py with your FLX4 and the overlay will prefer spikes/flx4_map.json, which uses the same keys. Only 'type', 'channel' and 'note'/'control' are read.",
+  "deck1_play": {"type": "note_on", "channel": 0, "note": 11},
+  "deck2_play": {"type": "note_on", "channel": 1, "note": 11},
+  "deck1_cue": {"type": "note_on", "channel": 0, "note": 12},
+  "deck2_cue": {"type": "note_on", "channel": 1, "note": 12},
+  "deck1_load": {"type": "note_on", "channel": 6, "note": 70},
+  "deck2_load": {"type": "note_on", "channel": 6, "note": 71},
+  "deck1_tempo": {"type": "control_change", "channel": 0, "control": 0},
+  "deck2_tempo": {"type": "control_change", "channel": 1, "control": 0},
+  "ch1_fader": {"type": "control_change", "channel": 0, "control": 19},
+  "ch2_fader": {"type": "control_change", "channel": 1, "control": 19},
+  "ch1_low_eq": {"type": "control_change", "channel": 0, "control": 15},
+  "ch2_low_eq": {"type": "control_change", "channel": 1, "control": 15},
+  "ch1_cfx": {"type": "control_change", "channel": 6, "control": 23},
+  "ch2_cfx": {"type": "control_change", "channel": 6, "control": 24},
+  "crossfader": {"type": "control_change", "channel": 6, "control": 31}
+}
