@@ -44,6 +44,11 @@ CUE_COLORS = {
     "filter": "#0000FF",     # Blue
     "drop": "#660099",       # Violet
     "loop_8": "#FFFF00",     # Lemon
+    "late_in": "#25FDE9",    # Turquoise
+    "early_out": "#FF007F",  # Rose
+    # Pioneer's palette has only 8 colors and all are taken; rekordbox ignores
+    # memory-cue colors on import anyway, so this one only shows in the app.
+    "fake_drop": "#B266FF",  # Light violet
 }
 
 _TYPE_CUE = "0"

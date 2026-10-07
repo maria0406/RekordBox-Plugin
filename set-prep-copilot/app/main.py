@@ -18,12 +18,15 @@ app = FastAPI(title="Set Prep Copilot")
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
 CUE_LEGEND = [
-    {"name": "MIX IN", "color": rekordbox_xml.CUE_COLORS["mix_in"], "action": "Start the blend", "where": "Incoming track: first downbeat of the intro phrase"},
+    {"name": "MIX IN", "color": rekordbox_xml.CUE_COLORS["mix_in"], "action": "Start the blend", "where": "Incoming track: hot cue A, first downbeat of the intro phrase"},
     {"name": "MIX OUT", "color": rekordbox_xml.CUE_COLORS["mix_out"], "action": "Begin leaving", "where": "Outgoing track: start of the outro phrase"},
     {"name": "BASS SWAP", "color": rekordbox_xml.CUE_COLORS["bass_swap"], "action": "Swap the bass", "where": "16 bars into the overlap, both tracks"},
-    {"name": "FILTER", "color": rekordbox_xml.CUE_COLORS["filter"], "action": "Filter out", "where": "Outgoing track: 8 bars before it should be gone"},
+    {"name": "FILTER", "color": rekordbox_xml.CUE_COLORS["filter"], "action": "Filter out", "where": "Outgoing track: 1 bar after its BASS SWAP, 8-bar sweep"},
     {"name": "DROP", "color": rekordbox_xml.CUE_COLORS["drop"], "action": "Fully in", "where": "Incoming track: its first drop"},
-    {"name": "LOOP 8", "color": rekordbox_xml.CUE_COLORS["loop_8"], "action": "Safety loop", "where": "Outgoing track's outro, 8-bar loop"},
+    {"name": "LOOP 8", "color": rekordbox_xml.CUE_COLORS["loop_8"], "action": "Safety loop", "where": "Outgoing track: last 8 bars of the transition, to stretch the blend"},
+    {"name": "LATE IN", "color": rekordbox_xml.CUE_COLORS["late_in"], "action": "Alternate start", "where": "Incoming track: where the full beat arrives, to skip a long intro"},
+    {"name": "EARLY OUT", "color": rekordbox_xml.CUE_COLORS["early_out"], "action": "Alternate exit", "where": "Outgoing track: its first breakdown, to leave before the outro"},
+    {"name": "FAKE DROP", "color": rekordbox_xml.CUE_COLORS["fake_drop"], "action": "Hold back the drop", "where": "Any track: last bar of a build-up; loop it or cut the bass, then let the drop hit"},
 ]
 
 

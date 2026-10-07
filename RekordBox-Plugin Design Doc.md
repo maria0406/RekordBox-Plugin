@@ -103,12 +103,17 @@ rekordbox offers two kinds of cues, and the scheme uses both:
 
 | Action | Cue name | Color | Cue type | Where it goes |
 | --- | --- | --- | --- | --- |
-| Start the blend | MIX IN | Green | Hot cue A + memory cue | Incoming track: first downbeat of the intro phrase |
+| Start the blend | MIX IN | Green | Hot cue A | Incoming track: first downbeat of the intro phrase |
 | Begin leaving | MIX OUT | Red | Memory cue | Outgoing track: start of the outro phrase, lined up with the next track's MIX IN |
 | Swap the bass | BASS SWAP | Orange | Memory cue, on both tracks | 16 bars into the overlap, on a phrase line: cut the outgoing low EQ, bring in the incoming |
-| Filter out | FILTER | Blue | Memory cue | Outgoing track: 8 bars before it should be gone, start sweeping the filter |
+| Filter out | FILTER | Blue | Memory cue | Outgoing track: 1 bar after its BASS SWAP, start sweeping the filter over 8 bars before the fade-out |
 | Fully in | DROP | Violet | Memory cue | Incoming track: its first drop, where the outgoing track should be silent |
-| Safety loop | LOOP 8 | Lemon | Memory loop (8 bars) | Outgoing track's outro, to buy time if the blend needs longer |
+| Safety loop | LOOP 8 | Lemon | Memory loop (8 bars) | Outgoing track: the last 8 bars of the transition, to buy time if the blend needs longer |
+| Alternate start | LATE IN | Turquoise | Memory cue | Incoming track: the phrase line where the full arrangement arrives, to skip a long intro |
+| Alternate exit | EARLY OUT | Rose | Memory cue | Outgoing track: the phrase line where its first breakdown starts, to leave before the outro |
+| Hold back the drop | FAKE DROP | (app only) | Memory cue | Any track: the last bar of the build out of its first breakdown; loop it, cut the bass or echo out, then let the drop hit |
+
+No two cues on a track share a spot (at least one bar apart). When two would collide, the higher-priority cue keeps the spot: actions (bass swap, filter, loop) move later a bar at a time, while markers (drop, alternates, fake drop) are left out rather than moved off the music they mark.
 
 **How the pairs line up.** Cues are always placed in pairs across two tracks. If track 1's MIX OUT is at bar 97, track 2's MIX IN is at its bar 1, and the BASS SWAP sits 16 bars later on both. Because both land on phrase lines, the two tracks' phrases stay in step through the whole transition.
 

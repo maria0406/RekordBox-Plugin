@@ -4,16 +4,17 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.cues import build_cue_plan, build_transition_notes, merge_coincident_memory_cues, _format_mmss
+from app.cues import build_cue_plan, build_transition_notes, merge_coincident_memory_cues, transition_timing, _format_mmss
 from app.rekordbox_xml import CUE_COLORS
 
 
-def _fake_analysis(bpm=124.0):
-    downbeats = [i * (60.0 / bpm * 4) for i in range(64)]
+def _fake_analysis(bpm=124.0, n_bars=64, phrase_starts=(0, 32)):
+    downbeats = [i * (60.0 / bpm * 4) for i in range(n_bars)]
+    bounds = list(phrase_starts) + [n_bars]
     return {
         "bpm": bpm,
         "downbeats": downbeats,
-        "phrases": [{"start_bar": 0, "length": 32}, {"start_bar": 32, "length": 32}],
+        "phrases": [{"start_bar": s, "length": e - s} for s, e in zip(bounds, bounds[1:])],
         "sections": [{"label": "drop", "start": downbeats[8], "end": downbeats[16]}],
     }
 
@@ -35,13 +36,12 @@ class TestBuildCuePlan(unittest.TestCase):
         self.assertIn("BASS SWAP", names_t2)
         self.assertIn("DROP", names_t2)
 
-    def test_mix_in_has_both_hot_and_memory_cue(self):
+    def test_mix_in_is_a_single_hot_cue(self):
         ordered = [{"id": "t1"}, {"id": "t2"}]
         analyses = {"t1": _fake_analysis(), "t2": _fake_analysis()}
         plan = build_cue_plan(ordered, analyses)
         mix_ins = [c for c in plan["t2"] if c["name"] == "MIX IN"]
-        kinds = {c["cue_kind"] for c in mix_ins}
-        self.assertEqual(kinds, {"hot", "memory"})
+        self.assertEqual([(c["cue_kind"], c["hot_cue_index"]) for c in mix_ins], [("hot", 0)])
 
     def test_colors_match_confirmed_palette(self):
         ordered = [{"id": "t1"}, {"id": "t2"}]
@@ -57,6 +57,84 @@ class TestBuildCuePlan(unittest.TestCase):
         mix_out = next(c for c in plan["t1"] if c["name"] == "MIX OUT")
         self.assertEqual(mix_out["start_s"], out["downbeats"][32])  # not the 8-bar tail phrase at bar 56
 
+    def test_filter_is_one_bar_after_outgoing_bass_swap(self):
+        out = _fake_analysis()  # MIX OUT at bar 32, BASS SWAP at bar 48
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": _fake_analysis()})
+        bass_swap = next(c for c in plan["t1"] if c["name"] == "BASS SWAP")
+        filter_cue = next(c for c in plan["t1"] if c["name"] == "FILTER")
+        self.assertEqual(bass_swap["start_s"], out["downbeats"][48])
+        self.assertEqual(filter_cue["start_s"], out["downbeats"][49])
+
+    def test_short_track_never_stacks_cues(self):
+        out = _fake_analysis()
+        out["downbeats"] = out["downbeats"][:12]  # BASS SWAP and FILTER both clamp to the last bar
+        out["phrases"] = [{"start_bar": 0, "length": 12}]
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": _fake_analysis()})
+        _assert_no_stacked_cues(self, plan["t1"], bpm=124.0)
+        self.assertIn("BASS SWAP", {c["name"] for c in plan["t1"]})  # the higher-priority cue keeps the spot
+
+    def test_loop_8_sits_at_the_end_of_the_transition_not_on_mix_out(self):
+        out = _fake_analysis(n_bars=96, phrase_starts=(0, 32, 64))
+        out["duration"] = out["downbeats"][-1] + 2.0
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": _fake_analysis()})
+        loop = next(c for c in plan["t1"] if c["name"] == "LOOP 8")
+        self.assertEqual(loop["start_s"], out["downbeats"][64 + 24])
+
+    def test_drop_on_the_bass_swap_bar_is_left_out(self):
+        incoming = _fake_analysis()
+        incoming["sections"] = [{"label": "drop", "start": incoming["downbeats"][16], "end": incoming["downbeats"][24]}]
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": _fake_analysis(), "t2": incoming})
+        names = [c["name"] for c in plan["t2"]]
+        self.assertIn("BASS SWAP", names)
+        self.assertNotIn("DROP", names)
+
+    def test_late_in_where_the_full_arrangement_arrives(self):
+        incoming = _fake_analysis(n_bars=96, phrase_starts=(0, 32, 64))
+        incoming["energy_curve"] = [{"rms": 0.3 if i < 21 else 1.0} for i in range(96)]  # 21 quiet bars
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": _fake_analysis(), "t2": incoming})
+        late_in = next(c for c in plan["t2"] if c["name"] == "LATE IN")
+        self.assertEqual(late_in["start_s"], incoming["downbeats"][24])  # rounded up to the phrase line
+
+    def test_no_late_in_without_a_long_intro(self):
+        incoming = _fake_analysis()
+        incoming["energy_curve"] = [{"rms": 1.0}] * 64
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": _fake_analysis(), "t2": incoming})
+        self.assertNotIn("LATE IN", {c["name"] for c in plan["t2"]})
+
+    def test_early_out_at_the_first_breakdown(self):
+        out = _fake_analysis(n_bars=96, phrase_starts=(0, 32, 64))  # MIX OUT at bar 64
+        out["sections"] = [{"label": "breakdown", "start": out["downbeats"][39], "end": out["downbeats"][48]}]
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": _fake_analysis()})
+        early_out = next(c for c in plan["t1"] if c["name"] == "EARLY OUT")
+        self.assertEqual(early_out["start_s"], out["downbeats"][40])
+
+    def test_fake_drop_on_the_last_bar_before_the_beat_returns(self):
+        track = _fake_analysis(n_bars=96, phrase_starts=(0, 32, 64))
+        track["sections"] = [{"label": "breakdown", "start": track["downbeats"][40], "end": track["downbeats"][48]}]
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": track, "t2": _fake_analysis()})
+        fake = next(c for c in plan["t1"] if c["name"] == "FAKE DROP")
+        self.assertEqual(fake["start_s"], track["downbeats"][47])
+
+    def test_no_fake_drop_when_the_breakdown_runs_to_the_end(self):
+        track = _fake_analysis()
+        track["sections"] = [{"label": "breakdown", "start": track["downbeats"][56], "end": track["downbeats"][63] + 2.0}]
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": _fake_analysis(), "t2": track})
+        self.assertNotIn("FAKE DROP", {c["name"] for c in plan["t2"]})
+
+    def test_full_set_has_no_stacked_cues(self):
+        ordered = [{"id": f"t{i}"} for i in range(4)]
+        analyses = {}
+        for i in range(4):
+            a = _fake_analysis(n_bars=96, phrase_starts=(0, 32, 64))
+            a["energy_curve"] = [{"rms": 0.3 if b < 18 else 1.0} for b in range(96)]
+            a["sections"] = [{"label": "drop", "start": a["downbeats"][16], "end": a["downbeats"][24]},
+                             {"label": "breakdown", "start": a["downbeats"][48], "end": a["downbeats"][56]}]
+            a["duration"] = a["downbeats"][-1] + 2.0
+            analyses[f"t{i}"] = a
+        plan = build_cue_plan(ordered, analyses)
+        for track_cues in plan.values():
+            _assert_no_stacked_cues(self, track_cues, bpm=124.0)
+
     def test_loop_past_track_end_is_skipped(self):
         out = _fake_analysis()
         out["duration"] = out["downbeats"][32] + 2.0  # MIX OUT is bar 32; an 8-bar loop would overrun
@@ -67,6 +145,13 @@ class TestBuildCuePlan(unittest.TestCase):
         ordered = [{"id": "solo"}]
         plan = build_cue_plan(ordered, {"solo": _fake_analysis()})
         self.assertEqual(plan, {"solo": []})
+
+
+def _assert_no_stacked_cues(test, track_cues, bpm):
+    bar_s = 60.0 / bpm * 4
+    starts = sorted(c["start_s"] for c in track_cues)
+    for a, b in zip(starts, starts[1:]):
+        test.assertGreaterEqual(b - a, bar_s * 0.99, f"cues {a:.2f}s and {b:.2f}s are within a bar")
 
 
 def _cue(name, start_s, kind="memory", loop_end_s=None):
@@ -89,6 +174,27 @@ class TestMergeCoincidentMemoryCues(unittest.TestCase):
         cues = [_cue("MIX OUT", 2.0), _cue("BASS SWAP", 2.0)]
         merge_coincident_memory_cues(cues)
         self.assertEqual(cues[0]["name"], "MIX OUT")
+
+
+class TestTransitionTiming(unittest.TestCase):
+    def test_includes_filter_cue_time(self):
+        out, inc = _fake_analysis(), _fake_analysis()
+        plan = build_cue_plan([{"id": "t1"}, {"id": "t2"}], {"t1": out, "t2": inc})
+        timing = transition_timing(plan["t1"], plan["t2"])
+        self.assertEqual(timing, {
+            "mixOutS": out["downbeats"][32], "bassSwapS": out["downbeats"][48],
+            "filterS": out["downbeats"][49], "mixInS": inc["downbeats"][0], "fakeDropS": None,
+        })
+
+    def test_includes_fake_drop_before_mix_out_only(self):
+        timing = transition_timing(
+            [_cue("FAKE DROP", 40.0), _cue("MIX OUT", 100.0), _cue("FAKE DROP", 120.0)], [_cue("MIX IN", 0.0)],
+        )
+        self.assertEqual(timing["fakeDropS"], 40.0)
+
+    def test_ignores_filter_before_mix_out_and_missing_filter(self):
+        timing = transition_timing([_cue("FILTER", 5.0), _cue("MIX OUT", 10.0)], [_cue("MIX IN", 0.0)])
+        self.assertIsNone(timing["filterS"])
 
 
 class TestFormatMmSs(unittest.TestCase):
