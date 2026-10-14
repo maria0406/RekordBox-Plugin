@@ -53,6 +53,25 @@ Then open `http://127.0.0.1:8888` in your browser.
 - Analyzing a full 15–30 track set runs real audio processing per track and
   can take a while — this isn't instant.
 
+## Hosted demo (Render)
+
+`../render.yaml` deploys a public demo to Render (dashboard > New >
+Blueprint > this repo). A server has no rekordbox library, so with
+`DEMO_MODE=1` the app swaps in `app/demo.py`: one playlist of eight CC
+tracks from the practice catalog (`demo/demo_set.json`), with their
+analyses already computed (`demo/analysis/`). The server therefore installs
+only `requirements-web.txt` and never runs librosa. The build step
+(`python -m app.demo`) downloads the audio from the Internet Archive into
+`demo/audio/` (gitignored). Each browser gets its own prep session, the
+Move Coach overlay is left out, and every page shows the track credits.
+
+To run the demo locally:
+
+```bash
+python -m app.demo
+DEMO_MODE=1 uvicorn app.main:app --port 8888
+```
+
 ## Practice catalog
 
 `python -m app.catalog.build --target 300` builds a graded practice library

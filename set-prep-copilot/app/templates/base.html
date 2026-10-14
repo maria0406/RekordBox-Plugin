@@ -21,6 +21,18 @@
     {% block content %}{% endblock %}
   </main>
 
+  {% if demo_mode %}
+  <footer class="credits">
+    <h2>Demo track credits</h2>
+    <ul>
+      {% for t in demo_credits %}
+      <li>"{{ t.name }}" by {{ t.artist }}, from <a href="{{ t.source_url }}">{{ t.album }}</a>,
+        licensed under <a href="{{ t.license.url }}">{{ t.license.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </footer>
+  {% endif %}
+
   <aside id="legend-panel" class="legend-panel" hidden>
     <div class="legend-panel-head">
       <h2>Cue color legend</h2>

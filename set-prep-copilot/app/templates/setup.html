@@ -5,11 +5,20 @@
   <div class="stage-step">Stage 1 of 4</div>
   <h1>Choose what to prep</h1>
   <div class="info-box">
+    {% if demo_mode %}
+    <p>
+      <strong>This is the hosted demo.</strong> Run locally, the app reads playlists
+      straight from your rekordbox library and analyzes your own audio files. Here
+      it uses a demo playlist of Creative Commons house tracks with the analysis
+      already done (credits at the bottom of the page).
+    </p>
+    {% else %}
     <p>
       Analysis (BPM, key, energy, phrases) runs on the actual audio files on this
       laptop, so playlists come straight from your <strong>local rekordbox
       library</strong> — no manual XML export or upload needed.
     </p>
+    {% endif %}
   </div>
 
   {% if rekordbox_error %}
@@ -46,10 +55,12 @@
     </select>
 
     <button type="submit" class="button primary">Analyze &amp; order this set</button>
+    {% if not demo_mode %}
     <p class="hint">
       This runs real beat/key/energy analysis on every track's audio file, so it can take
       a while for a full set — the page will load Results once it's done.
     </p>
+    {% endif %}
   </form>
   {% endif %}
 </section>

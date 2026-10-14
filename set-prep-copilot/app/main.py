@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 import statistics
 from pathlib import Path
 
@@ -8,16 +9,37 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import config, cues, rekordbox_db, rekordbox_xml, scoring, session_state
-from .audio_analysis import analyze_track
-from .overlay.routes import router as overlay_router
+from . import config, cues, rekordbox_xml, scoring, session_state
+
+if config.DEMO_MODE:
+    # Same interface, no rekordbox/librosa needed on the server (app/demo.py).
+    from . import demo
+    from . import demo as rekordbox_db
+    from .demo import analyze_track
+else:
+    from . import rekordbox_db
+    from .audio_analysis import analyze_track
 
 APP_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(APP_DIR / "templates"))
 
 app = FastAPI(title="Set Prep Copilot")
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
-app.include_router(overlay_router)  # Move Coach overlay over rekordbox (app/overlay)
+if config.DEMO_MODE:
+    @app.middleware("http")
+    async def demo_session_cookie(request: Request, call_next):
+        sid = request.cookies.get(session_state.SESSION_COOKIE) or secrets.token_urlsafe(16)
+        request.state.session_id = sid
+        response = await call_next(request)
+        if session_state.SESSION_COOKIE not in request.cookies:
+            response.set_cookie(session_state.SESSION_COOKIE, sid, httponly=True, samesite="lax", secure=True)
+        return response
+else:
+    # Move Coach overlay over rekordbox (app/overlay): needs the FLX4 plugged
+    # into this machine, so it only exists in the local app.
+    from .overlay.routes import router as overlay_router
+
+    app.include_router(overlay_router)
 
 CUE_LEGEND = [
     {"name": "MIX IN", "color": rekordbox_xml.CUE_COLORS["mix_in"], "action": "Start the blend", "where": "Incoming track: hot cue A, first downbeat of the intro phrase"},
@@ -34,7 +56,12 @@ CUE_LEGEND = [
 
 
 def render(request: Request, name: str, **context):
-    return templates.TemplateResponse(request, name, {"legend": CUE_LEGEND, **context})
+    return templates.TemplateResponse(request, name, {
+        "legend": CUE_LEGEND,
+        "demo_mode": config.DEMO_MODE,
+        "demo_credits": demo.credits() if config.DEMO_MODE else [],
+        **context,
+    })
 
 
 @app.get("/")
@@ -74,6 +101,7 @@ def analyze(
     request: Request, playlist_id: str = Form(...), playlist_name: str = Form(...),
     set_shape: str = Form("build"), locked_opener_id: str = Form(""), locked_closer_id: str = Form(""),
 ):
+    state = session_state.current(request)
     try:
         source_tracks = rekordbox_db.get_playlist_tracks(playlist_id)
     except rekordbox_db.RekordboxDbError as exc:
@@ -90,9 +118,9 @@ def analyze(
             ),
         )
 
-    session_state.STATE.playlist_name = playlist_name
-    session_state.STATE.source_tracks = source_tracks
-    session_state.STATE.set_shape = set_shape
+    state.playlist_name = playlist_name
+    state.source_tracks = source_tracks
+    state.set_shape = set_shape
 
     analyses: dict[str, dict] = {}
     scoring_input: list[dict] = []
@@ -156,32 +184,34 @@ def analyze(
     ordered = scoring.order_tracks(scoring_input, set_shape=set_shape, locked=locked)
     plan = cues.build_cue_plan(ordered, analyses)
 
-    session_state.STATE.analyses = analyses
-    session_state.STATE.ordered_tracks = ordered
-    session_state.STATE.cue_plan = plan
-    session_state.STATE.skipped_tracks = skipped
+    state.analyses = analyses
+    state.ordered_tracks = ordered
+    state.cue_plan = plan
+    state.skipped_tracks = skipped
     return RedirectResponse("/results", status_code=303)
 
 
 @app.get("/results")
 def results(request: Request):
-    if not session_state.STATE.ordered_tracks:
+    state = session_state.current(request)
+    if not state.ordered_tracks:
         return RedirectResponse("/setup")
 
     return render(
         request, "results.html",
-        ordered_tracks=session_state.STATE.ordered_tracks,
-        cue_plan=session_state.STATE.cue_plan,
-        playlist_name=session_state.STATE.playlist_name,
-        set_shape=session_state.STATE.set_shape,
-        rekordbox_export_ready=bool(session_state.STATE.rekordbox_export_path),
-        skipped_tracks=session_state.STATE.skipped_tracks,
+        ordered_tracks=state.ordered_tracks,
+        cue_plan=state.cue_plan,
+        playlist_name=state.playlist_name,
+        set_shape=state.set_shape,
+        rekordbox_export_ready=bool(state.rekordbox_export_path),
+        skipped_tracks=state.skipped_tracks,
     )
 
 
 @app.post("/results/move")
-def results_move(track_id: str = Form(...), direction: str = Form(...)):
-    ordered = session_state.STATE.ordered_tracks
+def results_move(request: Request, track_id: str = Form(...), direction: str = Form(...)):
+    state = session_state.current(request)
+    ordered = state.ordered_tracks
     index = next((i for i, t in enumerate(ordered) if t["id"] == track_id), None)
     if index is not None:
         target = index - 1 if direction == "up" else index + 1
@@ -189,14 +219,15 @@ def results_move(track_id: str = Form(...), direction: str = Form(...)):
             ordered[index], ordered[target] = ordered[target], ordered[index]
             # Cue placement depends on track order, so it must be rebuilt --
             # left stale it would still describe the pre-swap transitions.
-            session_state.STATE.cue_plan = cues.build_cue_plan(ordered, session_state.STATE.analyses)
+            state.cue_plan = cues.build_cue_plan(ordered, state.analyses)
 
     return RedirectResponse("/results", status_code=303)
 
 
 @app.post("/results/nudge-cue")
-def results_nudge_cue(track_id: str = Form(...), cue_index: int = Form(...), delta_seconds: float = Form(...)):
-    track_cues = session_state.STATE.cue_plan.get(track_id)
+def results_nudge_cue(request: Request, track_id: str = Form(...), cue_index: int = Form(...), delta_seconds: float = Form(...)):
+    state = session_state.current(request)
+    track_cues = state.cue_plan.get(track_id)
     if track_cues is not None and 0 <= cue_index < len(track_cues):
         cue = track_cues[cue_index]
         cue["start_s"] = max(0.0, cue["start_s"] + delta_seconds)
@@ -207,35 +238,38 @@ def results_nudge_cue(track_id: str = Form(...), cue_index: int = Form(...), del
 
 
 @app.post("/export/rekordbox")
-def export_rekordbox():
-    out_name = f"{(session_state.STATE.playlist_name or 'set').replace(' ', '_')}_prepped.xml"
-    out_path = config.UPLOADS_DIR / out_name
+def export_rekordbox(request: Request):
+    state = session_state.current(request)
+    out_name = f"{(state.playlist_name or 'set').replace(' ', '_')}_prepped.xml"
+    # Demo visitors share one server: keep their exports from overwriting each other.
+    out_path = config.UPLOADS_DIR / (f"{request.state.session_id}_{out_name}" if config.DEMO_MODE else out_name)
     comments_by_track_id = cues.build_transition_notes(
-        session_state.STATE.ordered_tracks, session_state.STATE.analyses, session_state.STATE.cue_plan,
+        state.ordered_tracks, state.analyses, state.cue_plan,
     )
     rekordbox_xml.write_export(
-        tracks_in_order=session_state.STATE.ordered_tracks,
+        tracks_in_order=state.ordered_tracks,
         cues_by_track_id={
             track_id: cues.merge_coincident_memory_cues(track_cues)
-            for track_id, track_cues in session_state.STATE.cue_plan.items()
+            for track_id, track_cues in state.cue_plan.items()
         },
         output_path=str(out_path),
-        playlist_name=f"{session_state.STATE.playlist_name} (Prepped)",
+        playlist_name=f"{state.playlist_name} (Prepped)",
         comments_by_track_id=comments_by_track_id,
     )
-    session_state.STATE.rekordbox_export_path = str(out_path)
+    state.rekordbox_export_path = str(out_path)
     return FileResponse(out_path, filename=out_name, media_type="application/xml")
 
 
 @app.get("/practice")
 def practice(request: Request):
-    if not session_state.STATE.ordered_tracks:
+    state = session_state.current(request)
+    if not state.ordered_tracks:
         return RedirectResponse("/setup")
 
     transitions = []
     coach_data = []
-    ordered = session_state.STATE.ordered_tracks
-    plan = session_state.STATE.cue_plan
+    ordered = state.ordered_tracks
+    plan = state.cue_plan
     for i in range(len(ordered) - 1):
         out_t, in_t = ordered[i], ordered[i + 1]
         timing = cues.transition_timing(plan.get(out_t["id"], []), plan.get(in_t["id"], []))
@@ -253,10 +287,11 @@ def practice(request: Request):
 
 
 @app.get("/audio/{track_id}")
-def audio(track_id: str):
+def audio(request: Request, track_id: str):
     """Stream a track in the current set to the practice demo. Only files of
     tracks already in the session's set are served -- never an arbitrary path."""
-    track = next((t for t in session_state.STATE.ordered_tracks if t["id"] == track_id), None)
+    state = session_state.current(request)
+    track = next((t for t in state.ordered_tracks if t["id"] == track_id), None)
     if track is None or not Path(track["location"]).is_file():
         return JSONResponse({"error": "unknown track"}, status_code=404)
     return FileResponse(track["location"])

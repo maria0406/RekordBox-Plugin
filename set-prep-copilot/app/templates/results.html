@@ -77,6 +77,12 @@
       <strong>Import Playlist</strong>. Importing only the playlist adds no cues to tracks
       already in your library.
     </p>
+    {% if demo_mode %}
+    <p class="hint">
+      In this demo the file points at the server's copies of the demo tracks, so it
+      shows the cues and playlist rekordbox would get but won't import as-is.
+    </p>
+    {% endif %}
   </div>
 
   <a href="/practice" class="button">Start practice session &rarr;</a>

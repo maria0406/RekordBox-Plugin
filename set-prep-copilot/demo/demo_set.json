@@ -1,0 +1,138 @@
+{
+  "playlists": [
+    {
+      "id": "demo-house",
+      "name": "Demo: Sunset house (8 CC-licensed tracks)",
+      "tracks": [
+        {
+          "track_id": "demo1",
+          "name": "Beirut",
+          "artist": "gerald",
+          "album": "art.019 - gerald \"beirut\"",
+          "total_time": 397,
+          "average_bpm": 122.01,
+          "audio_file": "Art.019Beirut__art019_1_gerald_-_beirut.mp3",
+          "analysis_file": "ia_Art.019Beirut_art019_1_gerald_-_beirut.mp3.json",
+          "download_url": "https://archive.org/download/Art.019Beirut/art019_1_gerald_-_beirut.mp3",
+          "source_url": "https://archive.org/details/Art.019Beirut",
+          "license": {
+            "name": "CC BY-NC-SA 2.0",
+            "url": "http://creativecommons.org/licenses/by-nc-sa/2.0/de/"
+          }
+        },
+        {
+          "track_id": "demo2",
+          "name": "Hidamari",
+          "artist": "zucchini",
+          "album": "Various Artists - getting warmer EP [bump006]",
+          "total_time": 443,
+          "average_bpm": 122.0,
+          "audio_file": "bump006__bump006_02-zucchini-hidamari.mp3",
+          "analysis_file": "ia_bump006_bump006_02-zucchini-hidamari.mp3.json",
+          "download_url": "https://archive.org/download/bump006/bump006_02-zucchini-hidamari.mp3",
+          "source_url": "https://archive.org/details/bump006",
+          "license": {
+            "name": "CC BY-NC-SA 2.5",
+            "url": "http://creativecommons.org/licenses/by-nc-sa/2.5/"
+          }
+        },
+        {
+          "track_id": "demo3",
+          "name": "Santiago",
+          "artist": "deymare",
+          "album": "art.020 - various artists \"20\"",
+          "total_time": 472,
+          "average_bpm": 122.13,
+          "audio_file": "art.020_20__art020_3_deymare_-_santiago.mp3",
+          "analysis_file": "ia_art.020_20_art020_3_deymare_-_santiago.mp3.json",
+          "download_url": "https://archive.org/download/art.020_20/art020_3_deymare_-_santiago.mp3",
+          "source_url": "https://archive.org/details/art.020_20",
+          "license": {
+            "name": "CC BY-NC-SA 2.0",
+            "url": "http://creativecommons.org/licenses/by-nc-sa/2.0/de/"
+          }
+        },
+        {
+          "track_id": "demo4",
+          "name": "Osc 3",
+          "artist": "DCM",
+          "album": "MNF022 DCM - Elevación",
+          "total_time": 410,
+          "average_bpm": 125.24,
+          "audio_file": "MNF022_DCM--Elevacion__01_DCM_-_Osc_3.mp3",
+          "analysis_file": "ia_MNF022_DCM--Elevacion_01_DCM_-_Osc_3.mp3.json",
+          "download_url": "https://archive.org/download/MNF022_DCM--Elevacion/01_DCM_-_Osc_3.mp3",
+          "source_url": "https://archive.org/details/MNF022_DCM--Elevacion",
+          "license": {
+            "name": "CC BY-SA 3.0",
+            "url": "http://creativecommons.org/licenses/by-sa/3.0/"
+          }
+        },
+        {
+          "track_id": "demo5",
+          "name": "Groovin'-Shakin'-Movin'-Breakin'",
+          "artist": "Oilboy's aftersun",
+          "album": "VA-Moments of iBuzz Pleasure[onmp052]",
+          "total_time": 324,
+          "average_bpm": 125.0,
+          "audio_file": "onmp052__03Oilboysaftersun_GroovinShakinMovinBreakin.mp3",
+          "analysis_file": "ia_onmp052_03Oilboysaftersun_GroovinShakinMovinBreakin.mp3.json",
+          "download_url": "https://archive.org/download/onmp052/03Oilboysaftersun_GroovinShakinMovinBreakin.mp3",
+          "source_url": "https://archive.org/details/onmp052",
+          "license": {
+            "name": "CC BY-NC 3.0",
+            "url": "http://creativecommons.org/licenses/by-nc/3.0/"
+          }
+        },
+        {
+          "track_id": "demo6",
+          "name": "Futuristic Sell Out",
+          "artist": "Tech Star",
+          "album": "Tech Star - Future Proof [bump122]",
+          "total_time": 315,
+          "average_bpm": 125.0,
+          "audio_file": "bump122__bump122_01-tech_star-futuristic_sell_out.mp3",
+          "analysis_file": "ia_bump122_bump122_01-tech_star-futuristic_sell_out.mp3.json",
+          "download_url": "https://archive.org/download/bump122/bump122_01-tech_star-futuristic_sell_out.mp3",
+          "source_url": "https://archive.org/details/bump122",
+          "license": {
+            "name": "CC BY-NC-SA 3.0",
+            "url": "http://creativecommons.org/licenses/by-nc-sa/3.0/"
+          }
+        },
+        {
+          "track_id": "demo7",
+          "name": "haikuB63",
+          "artist": "probject",
+          "album": "Probject - Haikus [adt002]",
+          "total_time": 352,
+          "average_bpm": 125.04,
+          "audio_file": "Adt002__audiotie_probject_haikuB63.mp3",
+          "analysis_file": "ia_Adt002_audiotie_probject_haikuB63.mp3.json",
+          "download_url": "https://archive.org/download/Adt002/audiotie_probject_haikuB63.mp3",
+          "source_url": "https://archive.org/details/Adt002",
+          "license": {
+            "name": "CC BY-NC-SA 2.0",
+            "url": "http://creativecommons.org/licenses/by-nc-sa/2.0/"
+          }
+        },
+        {
+          "track_id": "demo8",
+          "name": "Ignition",
+          "artist": "tatsu",
+          "album": "tatsu - space travel EP [bump020]",
+          "total_time": 374,
+          "average_bpm": 126.04,
+          "audio_file": "bump020__bump020_01-tatsu-ignition.mp3",
+          "analysis_file": "ia_bump020_bump020_01-tatsu-ignition.mp3.json",
+          "download_url": "https://archive.org/download/bump020/bump020_01-tatsu-ignition.mp3",
+          "source_url": "https://archive.org/details/bump020",
+          "license": {
+            "name": "CC BY-NC-SA 2.5",
+            "url": "http://creativecommons.org/licenses/by-nc-sa/2.5/"
+          }
+        }
+      ]
+    }
+  ]
+}

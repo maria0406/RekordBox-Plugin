@@ -1,0 +1,16 @@
+# Render Blueprint for the hosted Set Prep Copilot demo.
+# Render dashboard > New > Blueprint > pick this repo.
+services:
+  - type: web
+    name: set-prep-copilot
+    runtime: python
+    plan: free
+    rootDir: set-prep-copilot
+    buildCommand: pip install -r requirements-web.txt && python -m app.demo
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /setup
+    envVars:
+      - key: DEMO_MODE
+        value: "1"
+      - key: PYTHON_VERSION
+        value: 3.12.7

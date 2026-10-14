@@ -102,6 +102,11 @@ h2 { font-size: 17px; margin: 28px 0 12px; }
 .button:disabled { opacity: 0.35; cursor: default; }
 
 .hint { color: var(--text-dim); font-size: 13px; margin-top: 8px; }
+
+/* Hosted demo: CC attribution for the demo tracks (templates/base.html) */
+.credits { max-width: 880px; margin: 0 auto; padding: 0 24px 32px; color: var(--text-dim); font-size: 12px; }
+.credits h2 { font-size: 13px; color: var(--text); margin: 0 0 6px; }
+.credits ul { margin: 0; padding-left: 18px; }
 .error { color: #ff6b6b; }
 .success { color: #6bd97a; }
 

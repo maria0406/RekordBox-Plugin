@@ -8,3 +8,4 @@ __pycache__/
 *.egg-info/
 /catalog/
 catalog_build.log
+demo/audio/
