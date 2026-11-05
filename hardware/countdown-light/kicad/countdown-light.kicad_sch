@@ -4,6 +4,10 @@
 	(generator_version "10.0")
 	(uuid 38c49074-c9d4-4ed5-b83d-24244c8ea840)
 	(paper "A4")
+	(title_block
+		(title "Phrase Countdown Light")
+		(date "2026-11-05")
+	)
 	(lib_symbols
 		(symbol "countdown-light:XIAO_ESP32C3"
 			(exclude_from_sim no)
@@ -63,8 +67,8 @@
 			)
 			(symbol "XIAO_ESP32C3_0_1"
 				(rectangle
-					(start -7.62 10.16)
-					(end 7.62 -10.16)
+					(start -15.24 10.16)
+					(end 15.24 -10.16)
 					(stroke
 						(width 0.254)
 						(type default)
@@ -76,7 +80,7 @@
 			)
 			(symbol "XIAO_ESP32C3_1_1"
 				(pin bidirectional line
-					(at -10.16 7.62 0)
+					(at -17.78 7.62 0)
 					(length 2.54)
 					(name "D0/GPIO2"
 						(effects
@@ -94,7 +98,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -10.16 5.08 0)
+					(at -17.78 5.08 0)
 					(length 2.54)
 					(name "D1/GPIO3"
 						(effects
@@ -112,7 +116,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -10.16 2.54 0)
+					(at -17.78 2.54 0)
 					(length 2.54)
 					(name "D2/GPIO4"
 						(effects
@@ -130,7 +134,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -10.16 0 0)
+					(at -17.78 0 0)
 					(length 2.54)
 					(name "D3/GPIO5"
 						(effects
@@ -148,7 +152,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -10.16 -2.54 0)
+					(at -17.78 -2.54 0)
 					(length 2.54)
 					(name "D4/GPIO6"
 						(effects
@@ -166,7 +170,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -10.16 -5.08 0)
+					(at -17.78 -5.08 0)
 					(length 2.54)
 					(name "D5/GPIO7"
 						(effects
@@ -184,7 +188,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at -10.16 -7.62 0)
+					(at -17.78 -7.62 0)
 					(length 2.54)
 					(name "D6/GPIO21"
 						(effects
@@ -202,7 +206,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at 10.16 -7.62 180)
+					(at 17.78 -7.62 180)
 					(length 2.54)
 					(name "D7/GPIO20"
 						(effects
@@ -220,7 +224,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at 10.16 -5.08 180)
+					(at 17.78 -5.08 180)
 					(length 2.54)
 					(name "D8/GPIO8"
 						(effects
@@ -238,7 +242,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at 10.16 -2.54 180)
+					(at 17.78 -2.54 180)
 					(length 2.54)
 					(name "D9/GPIO9"
 						(effects
@@ -256,7 +260,7 @@
 					)
 				)
 				(pin bidirectional line
-					(at 10.16 0 180)
+					(at 17.78 0 180)
 					(length 2.54)
 					(name "D10/GPIO10"
 						(effects
@@ -274,7 +278,7 @@
 					)
 				)
 				(pin power_out line
-					(at 10.16 2.54 180)
+					(at 17.78 2.54 180)
 					(length 2.54)
 					(name "3V3"
 						(effects
@@ -292,7 +296,7 @@
 					)
 				)
 				(pin power_out line
-					(at 10.16 5.08 180)
+					(at 17.78 5.08 180)
 					(length 2.54)
 					(name "GND"
 						(effects
@@ -310,7 +314,7 @@
 					)
 				)
 				(pin power_out line
-					(at 10.16 7.62 180)
+					(at 17.78 7.62 180)
 					(length 2.54)
 					(name "5V"
 						(effects
@@ -1541,7 +1545,7 @@
 		(dnp no)
 		(uuid "06dd2075-50c6-4f5c-9589-c95067bbf4ae")
 		(property "Reference" "U1"
-			(at 63.5 66.04 0)
+			(at 63.5 63.5 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1551,7 +1555,7 @@
 			)
 		)
 		(property "Value" "XIAO ESP32C3"
-			(at 63.5 86.36 0)
+			(at 63.5 88.9 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1656,7 +1660,7 @@
 		(dnp no)
 		(uuid "3bb69883-5972-4fd3-a944-716a0b1fa4e7")
 		(property "Reference" "U2"
-			(at 109.22 60.96 0)
+			(at 109.22 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1738,7 +1742,7 @@
 		(dnp no)
 		(uuid "bd6c4d4d-9ec1-4fb6-a76a-f849926f3260")
 		(property "Reference" "R1"
-			(at 133.35 73.66 0)
+			(at 133.35 72.39 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1748,7 +1752,7 @@
 			)
 		)
 		(property "Value" "330"
-			(at 133.35 78.74 0)
+			(at 133.35 80.01 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1817,7 +1821,7 @@
 		(dnp no)
 		(uuid "2f51313d-ba5a-4549-95b3-df5697bac728")
 		(property "Reference" "LED1"
-			(at 165.1 66.04 0)
+			(at 171.45 66.04 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1827,7 +1831,7 @@
 			)
 		)
 		(property "Value" "NeoPixel Ring 16"
-			(at 165.1 86.36 0)
+			(at 177.8 88.9 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1902,7 +1906,7 @@
 		(dnp no)
 		(uuid "c075fa65-a968-4a5f-b390-a2cdf2453994")
 		(property "Reference" "C1"
-			(at 193.04 76.2 0)
+			(at 199.39 74.93 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1913,7 +1917,7 @@
 			)
 		)
 		(property "Value" "1000u 10V"
-			(at 198.12 76.2 0)
+			(at 199.39 77.47 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1973,7 +1977,7 @@
 	)
 	(symbol
 		(lib_id "Device:C")
-		(at 210.82 76.2 0)
+		(at 218.44 76.2 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -1983,7 +1987,7 @@
 		(dnp no)
 		(uuid "ba386237-f485-41e3-8549-17d77c34ca4a")
 		(property "Reference" "C2"
-			(at 208.28 76.2 0)
+			(at 222.25 74.93 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -1994,7 +1998,7 @@
 			)
 		)
 		(property "Value" "100n"
-			(at 213.36 76.2 0)
+			(at 222.25 77.47 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2144,7 +2148,7 @@
 		(dnp no)
 		(uuid "8dc4bcbb-371e-4cc4-ab55-019398e7514f")
 		(property "Reference" "U2"
-			(at 63.5 73.66 0)
+			(at 71.12 124.46 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2154,7 +2158,7 @@
 			)
 		)
 		(property "Value" "SN74AHCT125N"
-			(at 63.5 147.32 0)
+			(at 76.2 147.32 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2223,7 +2227,7 @@
 		(dnp no)
 		(uuid "f8403520-ff08-4557-90e6-7f0f493c7d11")
 		(property "Reference" "U2"
-			(at 104.14 73.66 0)
+			(at 104.14 125.73 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2305,7 +2309,7 @@
 		(dnp no)
 		(uuid "de87df16-d181-4583-8414-597633a1e981")
 		(property "Reference" "U2"
-			(at 139.7 73.66 0)
+			(at 139.7 125.73 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2387,7 +2391,7 @@
 		(dnp no)
 		(uuid "8a482617-fc25-4eb6-9534-18e8beb99730")
 		(property "Reference" "U2"
-			(at 175.26 73.66 0)
+			(at 175.26 125.73 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2458,7 +2462,7 @@
 		)
 	)
 	(label "BTN"
-		(at 53.34 71.12 180)
+		(at 45.72 71.12 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2468,7 +2472,7 @@
 		(uuid "ee16a984-7bf7-43ff-a638-b358156e86a1")
 	)
 	(label "DATA_3V3"
-		(at 73.66 76.2 0)
+		(at 81.28 76.2 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2478,7 +2482,7 @@
 		(uuid "87599913-98d1-4da8-89e1-43319ef88d14")
 	)
 	(label "GND"
-		(at 73.66 71.12 0)
+		(at 81.28 71.12 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2488,7 +2492,7 @@
 		(uuid "d06679c7-cead-492a-b351-e7aabd9d3b04")
 	)
 	(label "+5V"
-		(at 73.66 68.58 0)
+		(at 81.28 68.58 0)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2558,7 +2562,7 @@
 		(uuid "a154fb16-d063-4456-b87d-6027cd01c776")
 	)
 	(label "GND"
-		(at 132.07999999999998 132.08 180)
+		(at 132.08 132.08 180)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2678,7 +2682,7 @@
 		(uuid "00ef90b0-c32f-4ac6-a7eb-2fea312ff73f")
 	)
 	(label "+5V"
-		(at 210.82 72.39 90)
+		(at 218.44 72.39 90)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2688,7 +2692,7 @@
 		(uuid "c77e7df3-ecf4-4859-8aad-fd6197fda147")
 	)
 	(label "GND"
-		(at 210.82 80.01 270)
+		(at 218.44 80.01 270)
 		(effects
 			(font
 				(size 1.27 1.27)
@@ -2718,43 +2722,43 @@
 		(uuid "69971874-9ea0-479c-8bc4-39619370c364")
 	)
 	(no_connect
-		(at 53.34 68.58)
+		(at 45.72 68.58)
 		(uuid "54349ed9-da22-4750-89e5-8c3fa7bb1cfc")
 	)
 	(no_connect
-		(at 53.34 73.66)
+		(at 45.72 73.66)
 		(uuid "0453cca8-ed9a-47c1-a7a3-71f2a2464213")
 	)
 	(no_connect
-		(at 53.34 76.2)
+		(at 45.72 76.2)
 		(uuid "b51172a3-3c53-4198-adcb-320746e1f342")
 	)
 	(no_connect
-		(at 53.34 78.74000000000001)
+		(at 45.72 78.74000000000001)
 		(uuid "bcfd9e2c-f168-4f99-a802-bfea53fcabd0")
 	)
 	(no_connect
-		(at 53.34 81.28)
+		(at 45.72 81.28)
 		(uuid "f27fc85a-22ec-4c56-8947-c5327bcb16e3")
 	)
 	(no_connect
-		(at 53.34 83.82000000000001)
+		(at 45.72 83.82000000000001)
 		(uuid "c58da9f0-190e-4983-a63e-de0718347a63")
 	)
 	(no_connect
-		(at 73.66 83.82000000000001)
+		(at 81.28 83.82000000000001)
 		(uuid "b3877126-c95f-4134-8992-2b201c7ef9e1")
 	)
 	(no_connect
-		(at 73.66 81.28)
+		(at 81.28 81.28)
 		(uuid "20d7836a-8eff-4138-9c2c-ef1030744c46")
 	)
 	(no_connect
-		(at 73.66 78.74000000000001)
+		(at 81.28 78.74000000000001)
 		(uuid "e49c5021-1bf2-407c-a9b3-3ac58767e43b")
 	)
 	(no_connect
-		(at 73.66 73.66)
+		(at 81.28 73.66)
 		(uuid "4e96f5f1-76ca-409f-bad0-0754ebcd8883")
 	)
 	(no_connect
