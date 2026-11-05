@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "countdown-light")(type "KiCad")(uri "${KIPRJMOD}/countdown-light.kicad_sym")(options "")(descr ""))
+)
